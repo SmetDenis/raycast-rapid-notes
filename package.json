@@ -18,19 +18,43 @@
       "name": "append-note",
       "title": "Append Rapid Item",
       "description": "Append selected or typed text to your Markdown file, with an editable form.",
-      "mode": "view"
+      "mode": "view",
+      "arguments": [
+        {
+          "name": "text",
+          "type": "text",
+          "placeholder": "Type note text",
+          "required": false
+        }
+      ]
     },
     {
       "name": "append-note-silent",
       "title": "Append Rapid Item (Silent)",
       "description": "Instantly append the selected text to your Markdown file without a form.",
-      "mode": "no-view"
+      "mode": "no-view",
+      "arguments": [
+        {
+          "name": "text",
+          "type": "text",
+          "placeholder": "Type note text",
+          "required": false
+        }
+      ]
     },
     {
       "name": "new-note",
       "title": "New Rapid Note",
       "description": "Create a new timestamped Markdown note with frontmatter from a template.",
-      "mode": "view"
+      "mode": "view",
+      "arguments": [
+        {
+          "name": "text",
+          "type": "text",
+          "placeholder": "Type note text",
+          "required": false
+        }
+      ]
     }
   ],
   "preferences": [
@@ -104,6 +128,28 @@
       "type": "checkbox",
       "required": false,
       "default": false
+    },
+    {
+      "name": "mergeSeparator",
+      "title": "Argument + Selection Separator",
+      "description": "How a typed argument joins with the selected/clipboard text when both are present.",
+      "type": "dropdown",
+      "required": false,
+      "default": "semicolon",
+      "data": [
+        {
+          "title": "Semicolon",
+          "value": "semicolon"
+        },
+        {
+          "title": "Space",
+          "value": "space"
+        },
+        {
+          "title": "Newline",
+          "value": "newline"
+        }
+      ]
     }
   ],
   "scripts": {

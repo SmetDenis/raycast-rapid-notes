@@ -3,6 +3,7 @@ import {
   ActionPanel,
   Clipboard,
   Form,
+  LaunchProps,
   Toast,
   closeMainWindow,
   getPreferenceValues,
@@ -10,6 +11,7 @@ import {
   showToast,
 } from "@raycast/api";
 import { useEffect, useState } from "react";
+import { mergeCapturedContent, separatorGlyph } from "./lib/content";
 import { formatDate } from "./lib/datetime";
 import { upsertUpdatedField } from "./lib/frontmatter";
 import { applyAppend } from "./lib/note";
@@ -27,7 +29,9 @@ interface Values {
   url: string;
 }
 
-export default function AppendNoteCommand() {
+export default function AppendNoteCommand(
+  props: LaunchProps<{ arguments: Arguments.AppendNote }>,
+) {
   const prefs = getPreferenceValues<Preferences.AppendNote>();
   const [content, setContent] = useState("");
   const [url, setUrl] = useState("");
@@ -39,7 +43,13 @@ export default function AppendNoteCommand() {
   useEffect(() => {
     void (async () => {
       const selection = await readSelectionOrClipboard(prefs.clipboardFallback);
-      setContent(selection.text);
+      setContent(
+        mergeCapturedContent(
+          props.arguments.text,
+          selection.text,
+          separatorGlyph(prefs.mergeSeparator),
+        ),
+      );
       setFromClipboard(selection.fromClipboard);
       const source = await readSource();
       setUrl(source.url);

@@ -1,4 +1,11 @@
-import { Toast, getPreferenceValues, showHUD, showToast } from "@raycast/api";
+import {
+  LaunchProps,
+  Toast,
+  getPreferenceValues,
+  showHUD,
+  showToast,
+} from "@raycast/api";
+import { mergeCapturedContent, separatorGlyph } from "./lib/content";
 import { formatDate } from "./lib/datetime";
 import { upsertUpdatedField } from "./lib/frontmatter";
 import { applyAppend } from "./lib/note";
@@ -11,11 +18,16 @@ import {
   writeFile,
 } from "./shared";
 
-export default async function AppendNoteSilentCommand() {
+export default async function AppendNoteSilentCommand(
+  props: LaunchProps<{ arguments: Arguments.AppendNoteSilent }>,
+) {
   const prefs = getPreferenceValues<Preferences.AppendNoteSilent>();
 
-  const { text: content } = await readSelectionOrClipboard(
-    prefs.clipboardFallback,
+  const captured = await readSelectionOrClipboard(prefs.clipboardFallback);
+  const content = mergeCapturedContent(
+    props.arguments.text,
+    captured.text,
+    separatorGlyph(prefs.mergeSeparator),
   );
   if (!content.trim()) {
     await showHUD(

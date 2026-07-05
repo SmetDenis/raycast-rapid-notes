@@ -3,6 +3,7 @@ import {
   ActionPanel,
   Clipboard,
   Form,
+  LaunchProps,
   Toast,
   closeMainWindow,
   getPreferenceValues,
@@ -11,6 +12,7 @@ import {
 } from "@raycast/api";
 import { join } from "node:path";
 import { useEffect, useState } from "react";
+import { mergeCapturedContent, separatorGlyph } from "./lib/content";
 import { formatDate } from "./lib/datetime";
 import { uniqueFilename } from "./lib/filename";
 import { buildNewNote } from "./lib/note";
@@ -31,7 +33,9 @@ interface Values {
   url: string;
 }
 
-export default function NewNoteCommand() {
+export default function NewNoteCommand(
+  props: LaunchProps<{ arguments: Arguments.NewNote }>,
+) {
   const prefs = getPreferenceValues<Preferences.NewNote>();
   const [title, setTitle] = useState("");
   const [tags, setTags] = useState(prefs.defaultTags ?? "");
@@ -43,7 +47,13 @@ export default function NewNoteCommand() {
   useEffect(() => {
     void (async () => {
       const selection = await readSelectionOrClipboard(prefs.clipboardFallback);
-      setContent(selection.text);
+      setContent(
+        mergeCapturedContent(
+          props.arguments.text,
+          selection.text,
+          separatorGlyph(prefs.mergeSeparator),
+        ),
+      );
       setFromClipboard(selection.fromClipboard);
       const source = await readSource();
       setUrl(source.url);

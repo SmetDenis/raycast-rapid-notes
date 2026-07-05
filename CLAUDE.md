@@ -96,6 +96,13 @@ publish flow depend on them; do not reimplement logic in the Makefile or the two
   textarea type — comma-separated values live in single-line `textfield`s.
 - Default tags: a comma-separated `textfield` preference. The New Rapid Note form prefills its tags
   field from it; the user edits per note (prefill/replace, not merge).
+- Inline `text` argument (all three commands, optional single-line Raycast argument, read via
+  `LaunchProps`): the typed text MERGES with the capture into one `{content}` through
+  `lib/content.mergeCapturedContent` — argument-first (`arg + sep + capture`), separator only when
+  BOTH are present, capture kept verbatim, nullish argument treated as empty. The `mergeSeparator`
+  dropdown pref picks the glyph via `lib/content.separatorGlyph`: `semicolon` (default ⇒ `"; "`) /
+  `space` / `newline`. The argument always feeds `{content}` (never new-note's title); Silent's
+  empty-check runs on the merged value, so a typed argument alone satisfies it.
 
 ## Gotchas
 
