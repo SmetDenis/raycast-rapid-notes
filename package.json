@@ -67,8 +67,8 @@
     },
     {
       "name": "appendHeading",
-      "title": "Append Rapid Item: Heading (H1)",
-      "description": "If set, append under this H1 heading; leave empty to append to the end of the file.",
+      "title": "Append Rapid Item: Heading",
+      "description": "If set, append under this heading (matched case-insensitively). Leading #s set the level, e.g. '# Inbox', '### Tasks', or '## **Title**'; plain text with no #s is treated as H1. Leave empty to append to the end of the file.",
       "type": "textfield",
       "required": false,
       "default": ""

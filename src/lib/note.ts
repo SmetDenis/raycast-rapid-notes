@@ -1,20 +1,38 @@
 import { buildFrontmatter } from "./frontmatter";
 import { appendToEnd, appendUnderHeading } from "./markdown";
 
+interface ParsedHeading {
+  level: number;
+  text: string;
+}
+
+/**
+ * Interpret the append-heading preference: leading `#`s set the level (bare text
+ * defaults to H1); the rest is the verbatim heading text (markdown allowed).
+ * Returns null for an empty preference — meaning "append to the end of the file".
+ * A missing space after the hashes (`###Title`) is tolerated.
+ */
+function parseHeadingPref(pref: string): ParsedHeading | null {
+  const trimmed = pref.trim();
+  if (trimmed === "") return null;
+  const m = /^(#{1,6})\s*(\S.*?)\s*$/.exec(trimmed);
+  return m ? { level: m[1].length, text: m[2] } : { level: 1, text: trimmed };
+}
+
 /**
  * Append a rendered line to file content: to the end when no heading is
- * configured, otherwise under the given H1 heading. A leading `#` in the
- * heading preference is tolerated.
+ * configured, otherwise under the configured heading at its parsed level,
+ * matched case-insensitively.
  */
 export function applyAppend(
   content: string,
   heading: string,
   line: string,
 ): string {
-  const h = heading.trim().replace(/^#+\s*/, "");
-  return h === ""
+  const parsed = parseHeadingPref(heading);
+  return parsed === null
     ? appendToEnd(content, line)
-    : appendUnderHeading(content, h, line);
+    : appendUnderHeading(content, parsed.level, parsed.text, line);
 }
 
 export interface NewNoteInput {

@@ -41,7 +41,7 @@ publish flow depend on them; do not reimplement logic in the Makefile or the two
   - `src/append-note-silent.ts` — `no-view` mode, instant save + `showHUD`.
   - `src/new-note.tsx` — `view` mode, Form.
 - `src/lib/` — pure core, no `@raycast/api`: template/placeholder rendering, date + timestamp-filename
-  formatting, Markdown append (to file end or under an H1 heading), new-note + YAML frontmatter
+  formatting, Markdown append (to file end or under a configurable heading), new-note + YAML frontmatter
   composition (escaping-safe), tag parsing, browser-app detection.
 - `src/shared.ts` — the non-command adapter (`@raycast/api` + `node:fs`): selection/clipboard and
   browser/app capture (`readSource`, `readSelectionOrClipboard`) plus file read/write. Not in `lib`,
@@ -61,7 +61,8 @@ publish flow depend on them; do not reimplement logic in the Makefile or the two
 ## Preferences (extension-level, shared)
 
 - Extension-level so the Form and Silent append commands read identical config: append target
-  file, append H1 heading (empty ⇒ append to end of file), append template, new-note directory,
+  file, append heading (leading `#`s set the level, default H1; empty ⇒ append to end of file),
+  append template, new-note directory,
   new-note body template.
 - Template placeholders (all built in `lib/vars.buildTemplateVars`): each captured field has a RAW
   form (trimmed, no label, `""` when empty) and a FORMATTED form (a labeled line ending in `\n`,
@@ -123,7 +124,11 @@ publish flow depend on them; do not reimplement logic in the Makefile or the two
 - Form `defaultValue` is applied once per component lifecycle — prefill the selection via
   `defaultValue`, not `value`.
 - Markdown heading insertion is the most bug-prone piece: explicitly define and test the
-  heading-missing, multiple-matching-headings, and empty-file cases.
+  heading-missing, multiple-matching-headings, and empty-file cases. The heading pref is parsed
+  by `lib/note.parseHeadingPref` into `{level, text}` (leading `#`s ⇒ level, bare text ⇒ H1);
+  `lib/markdown.appendUnderHeading(content, level, text, line)` matches at the EXACT level and
+  case-insensitively, and the section ends at the next heading of ANY level (a nested sub-heading
+  closes it — it is NOT kept inside).
 - YAML frontmatter (New Rapid Note) is the other bug-prone piece: `title`/`source_url` can contain
   `:`, `#`, or quotes and tags can contain spaces — quote/escape structurally (all via `yamlScalar`)
   and test special-char titles, empty tags, and multi-tag cases. Never hand-interpolate YAML through

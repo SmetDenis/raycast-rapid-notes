@@ -15,6 +15,26 @@ describe("applyAppend", () => {
       "# Inbox\n- a\n- x\n",
     );
   });
+
+  test("parses an explicit level from the preference", () => {
+    expect(applyAppend("## Tasks\n- a\n", "## Tasks", "- x")).toBe(
+      "## Tasks\n- a\n- x\n",
+    );
+  });
+
+  test("creates a heading at the parsed level when absent", () => {
+    expect(applyAppend("", "### Notes", "- x")).toBe("### Notes\n- x\n");
+  });
+
+  test("keeps markdown in the heading text", () => {
+    expect(applyAppend("", "## **title**", "- x")).toBe("## **title**\n- x\n");
+  });
+
+  test("matches the heading case-insensitively", () => {
+    expect(applyAppend("### notes\n- a\n", "### Notes", "- x")).toBe(
+      "### notes\n- a\n- x\n",
+    );
+  });
 });
 
 describe("buildNewNote", () => {
