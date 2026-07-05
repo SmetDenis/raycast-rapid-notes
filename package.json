@@ -1,0 +1,123 @@
+{
+  "$schema": "https://www.raycast.com/schemas/extension.json",
+  "name": "quick-notes",
+  "title": "Quick Notes",
+  "description": "Quickly capture notes: append selected or typed text to a Markdown file as checklist items, or create a new timestamped note from a template.",
+  "icon": "icon.png",
+  "author": "smetdenis",
+  "categories": [
+    "Productivity"
+  ],
+  "license": "MIT",
+  "platforms": [
+    "macOS",
+    "Windows"
+  ],
+  "commands": [
+    {
+      "name": "append-note",
+      "title": "Append Note",
+      "description": "Append selected or typed text to your Markdown file, with an editable form.",
+      "mode": "view"
+    },
+    {
+      "name": "append-note-silent",
+      "title": "Append Note (Silent)",
+      "description": "Instantly append the selected text to your Markdown file without a form.",
+      "mode": "no-view"
+    },
+    {
+      "name": "new-note",
+      "title": "New Note",
+      "description": "Create a new timestamped Markdown note with frontmatter from a template.",
+      "mode": "view"
+    }
+  ],
+  "preferences": [
+    {
+      "name": "appendTargetFile",
+      "title": "Append: Target File",
+      "description": "The Markdown file that Append commands write to.",
+      "type": "file",
+      "required": true
+    },
+    {
+      "name": "appendHeading",
+      "title": "Append: Heading (H1)",
+      "description": "If set, append under this H1 heading; leave empty to append to the end of the file.",
+      "type": "textfield",
+      "required": false,
+      "default": ""
+    },
+    {
+      "name": "appendTemplate",
+      "title": "Append: Template",
+      "description": "Template for each appended line. Placeholders: {content} {url} {title} {date} {time} {datetime}.",
+      "type": "textfield",
+      "required": false,
+      "default": "- [ ] {content}"
+    },
+    {
+      "name": "newNoteDirectory",
+      "title": "New Note: Directory",
+      "description": "Folder where new notes are created.",
+      "type": "directory",
+      "required": true
+    },
+    {
+      "name": "newNoteBodyTemplate",
+      "title": "New Note: Body Template",
+      "description": "Template for the note body; YAML frontmatter is added automatically. Placeholders: {content} {title} {url} {date} {time} {datetime}.",
+      "type": "textfield",
+      "required": false,
+      "default": "{content}"
+    },
+    {
+      "name": "dateFormat",
+      "title": "Date Format",
+      "description": "date-fns format for {datetime} and the frontmatter created field.",
+      "type": "textfield",
+      "required": false,
+      "default": "yyyy-MM-dd'T'HH:mm:ss"
+    },
+    {
+      "name": "filenameDateFormat",
+      "title": "Filename Date Format",
+      "description": "date-fns format for new-note filenames. Avoid characters invalid in filenames.",
+      "type": "textfield",
+      "required": false,
+      "default": "yyyy-MM-dd-HHmm"
+    },
+    {
+      "name": "defaultTags",
+      "title": "Default Tags",
+      "description": "Comma-separated tags prefilled into the New Note form.",
+      "type": "textfield",
+      "required": false,
+      "default": ""
+    }
+  ],
+  "scripts": {
+    "build": "ray build",
+    "dev": "ray develop",
+    "lint": "ray lint",
+    "fix-lint": "ray lint --fix",
+    "publish": "ray publish",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@raycast/api": "^1.104.21",
+    "date-fns": "^4.4.0"
+  },
+  "devDependencies": {
+    "@raycast/eslint-config": "^2.2.0",
+    "@types/node": "^26.1.0",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "eslint": "^9.39.4",
+    "prettier": "^3.9.4",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.9"
+  }
+}
