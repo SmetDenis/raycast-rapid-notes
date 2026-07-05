@@ -21,17 +21,25 @@ export interface NewNoteInput {
   created: string;
   tags: string[];
   title: string;
+  sourceUrl: string;
   body: string;
 }
 
-/** Compose a full new note: frontmatter, a blank line, the body, trailing newline. */
+/**
+ * Compose a full new note: frontmatter, then the body VERBATIM on the next line — no
+ * blank line between the closing `---` and the body (Obsidian's native format). The
+ * body's intentional trailing/internal newlines are preserved (never trimmed); a single
+ * trailing newline is added only when the body lacks one. A blank body is omitted.
+ */
 export function buildNewNote({
   created,
   tags,
   title,
+  sourceUrl,
   body,
 }: NewNoteInput): string {
-  const fm = buildFrontmatter({ created, tags, title });
-  const b = body.replace(/\n+$/, "");
-  return b === "" ? `${fm}\n` : `${fm}\n\n${b}\n`;
+  const fm = buildFrontmatter({ created, tags, title, sourceUrl });
+  if (body.trim() === "") return `${fm}\n`;
+  const withNewline = body.endsWith("\n") ? body : `${body}\n`;
+  return `${fm}\n${withNewline}`;
 }

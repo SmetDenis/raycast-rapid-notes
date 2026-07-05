@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { renderTemplate } from "./template";
+import { renderTemplate, unescapeTemplate } from "./template";
 
 describe("renderTemplate", () => {
   test("replaces a known placeholder with its value", () => {
@@ -33,5 +33,45 @@ describe("renderTemplate", () => {
 
   test("does not re-process text introduced by a substitution", () => {
     expect(renderTemplate("{a}", { a: "{b}", b: "X" })).toBe("{b}");
+  });
+
+  test("interprets a \\n escape in the template as a real newline", () => {
+    expect(
+      renderTemplate("- [ ] {content}\\nsource: {url}", {
+        content: "x",
+        url: "u",
+      }),
+    ).toBe("- [ ] x\nsource: u");
+  });
+
+  test("does not interpret escape sequences coming from a substituted value", () => {
+    // A literal backslash-n in the value must stay literal, not become a newline.
+    expect(renderTemplate("{content}", { content: "a\\nb" })).toBe("a\\nb");
+  });
+});
+
+describe("unescapeTemplate", () => {
+  test("turns \\n into a newline", () => {
+    expect(unescapeTemplate("a\\nb")).toBe("a\nb");
+  });
+
+  test("turns \\t into a tab", () => {
+    expect(unescapeTemplate("a\\tb")).toBe("a\tb");
+  });
+
+  test("collapses \\\\ into a single backslash", () => {
+    expect(unescapeTemplate("a\\\\b")).toBe("a\\b");
+  });
+
+  test("keeps an escaped backslash-n literal (\\\\n stays \\n)", () => {
+    expect(unescapeTemplate("a\\\\nb")).toBe("a\\nb");
+  });
+
+  test("leaves a string without escapes unchanged", () => {
+    expect(unescapeTemplate("- [ ] {content}")).toBe("- [ ] {content}");
+  });
+
+  test("leaves an unknown escape untouched", () => {
+    expect(unescapeTemplate("a\\xb")).toBe("a\\xb");
   });
 });

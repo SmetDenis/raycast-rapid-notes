@@ -1,36 +1,53 @@
 import { Toast, getPreferenceValues, showHUD, showToast } from "@raycast/api";
+import { formatDate } from "./lib/datetime";
+import { upsertUpdatedField } from "./lib/frontmatter";
 import { applyAppend } from "./lib/note";
 import { renderTemplate } from "./lib/template";
 import { buildTemplateVars } from "./lib/vars";
-import { readActiveTab, readFile, readSelection, writeFile } from "./shared";
+import {
+  readFile,
+  readSelectionOrClipboard,
+  readSource,
+  writeFile,
+} from "./shared";
 
 export default async function AppendNoteSilentCommand() {
   const prefs = getPreferenceValues<Preferences.AppendNoteSilent>();
 
-  const selection = (await readSelection()).trim();
-  if (!selection) {
-    await showHUD("Quick Notes: nothing selected");
+  const { text: content } = await readSelectionOrClipboard(
+    prefs.clipboardFallback,
+  );
+  if (!content.trim()) {
+    await showHUD(
+      prefs.clipboardFallback
+        ? "Rapid Notes: nothing selected or empty clipboard"
+        : "Rapid Notes: nothing selected",
+    );
     return;
   }
 
   try {
-    const tab = await readActiveTab();
+    const now = new Date();
+    const source = await readSource();
     const line = renderTemplate(
       prefs.appendTemplate,
       buildTemplateVars({
-        content: selection,
-        url: tab.url,
-        title: tab.title,
-        now: new Date(),
+        content,
+        url: source.url,
+        title: source.title,
+        app: source.app,
+        now,
         dateFormat: prefs.dateFormat,
       }),
     );
     const current = readFile(prefs.appendTargetFile);
+    const appended = applyAppend(current, prefs.appendHeading, line);
+    // Refresh `updated` if the target already has frontmatter (no-op otherwise).
     writeFile(
       prefs.appendTargetFile,
-      applyAppend(current, prefs.appendHeading, line),
+      upsertUpdatedField(appended, formatDate(now, prefs.dateFormat)),
     );
-    await showHUD("Quick Notes: appended");
+    await showHUD("Rapid Notes: appended");
   } catch (error) {
     await showToast({
       style: Toast.Style.Failure,

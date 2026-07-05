@@ -1,7 +1,7 @@
 {
   "$schema": "https://www.raycast.com/schemas/extension.json",
-  "name": "quick-notes",
-  "title": "Quick Notes",
+  "name": "rapid-notes",
+  "title": "Rapid Notes",
   "description": "Quickly capture notes: append selected or typed text to a Markdown file as checklist items, or create a new timestamped note from a template.",
   "icon": "icon.png",
   "author": "smetdenis",
@@ -16,19 +16,19 @@
   "commands": [
     {
       "name": "append-note",
-      "title": "Append Note",
+      "title": "Append Rapid Item",
       "description": "Append selected or typed text to your Markdown file, with an editable form.",
       "mode": "view"
     },
     {
       "name": "append-note-silent",
-      "title": "Append Note (Silent)",
+      "title": "Append Rapid Item (Silent)",
       "description": "Instantly append the selected text to your Markdown file without a form.",
       "mode": "no-view"
     },
     {
       "name": "new-note",
-      "title": "New Note",
+      "title": "New Rapid Note",
       "description": "Create a new timestamped Markdown note with frontmatter from a template.",
       "mode": "view"
     }
@@ -36,14 +36,14 @@
   "preferences": [
     {
       "name": "appendTargetFile",
-      "title": "Append: Target File",
+      "title": "Append Rapid Item: Target File",
       "description": "The Markdown file that Append commands write to.",
       "type": "file",
       "required": true
     },
     {
       "name": "appendHeading",
-      "title": "Append: Heading (H1)",
+      "title": "Append Rapid Item: Heading (H1)",
       "description": "If set, append under this H1 heading; leave empty to append to the end of the file.",
       "type": "textfield",
       "required": false,
@@ -51,23 +51,23 @@
     },
     {
       "name": "appendTemplate",
-      "title": "Append: Template",
-      "description": "Template for each appended line. Placeholders: {content} {url} {title} {date} {time} {datetime}.",
+      "title": "Append Rapid Item: Template",
+      "description": "Template for each appended line. Values: {content} {url} {title} {app} {page} {date} {time} {datetime}. Formatted (label + newline): {content_f} {url_f} {title_f} {app_f} {page_f}.",
       "type": "textfield",
       "required": false,
       "default": "- [ ] {content}"
     },
     {
       "name": "newNoteDirectory",
-      "title": "New Note: Directory",
+      "title": "New Rapid Note: Directory",
       "description": "Folder where new notes are created.",
       "type": "directory",
       "required": true
     },
     {
       "name": "newNoteBodyTemplate",
-      "title": "New Note: Body Template",
-      "description": "Template for the note body; YAML frontmatter is added automatically. Placeholders: {content} {title} {url} {date} {time} {datetime}.",
+      "title": "New Rapid Note: Body Template",
+      "description": "Template for the note body; YAML frontmatter is added automatically. Values: {content} {url} {title} {app} {page} {date} {time} {datetime}. Formatted (label + newline): {content_f} {url_f} {title_f} {app_f} {page_f}.",
       "type": "textfield",
       "required": false,
       "default": "{content}"
@@ -86,23 +86,32 @@
       "description": "date-fns format for new-note filenames. Avoid characters invalid in filenames.",
       "type": "textfield",
       "required": false,
-      "default": "yyyy-MM-dd-HHmm"
+      "default": "yyyy-MM-dd-HHmmss"
     },
     {
       "name": "defaultTags",
       "title": "Default Tags",
-      "description": "Comma-separated tags prefilled into the New Note form.",
+      "description": "Comma-separated tags prefilled into the New Rapid Note form.",
       "type": "textfield",
       "required": false,
       "default": ""
+    },
+    {
+      "name": "clipboardFallback",
+      "title": "Clipboard Fallback",
+      "label": "Use the clipboard when no text is selected",
+      "description": "When on, the Form commands fall back to the clipboard if nothing is selected — for apps like Telegram that don't expose their selection to a focused form. Copy the text first, then run the command.",
+      "type": "checkbox",
+      "required": false,
+      "default": false
     }
   ],
   "scripts": {
-    "build": "ray build",
+    "build": "ray build -e dist",
     "dev": "ray develop",
     "lint": "ray lint",
     "fix-lint": "ray lint --fix",
-    "publish": "ray publish",
+    "publish": "npx @raycast/api@latest publish",
     "test": "vitest run",
     "test:watch": "vitest"
   },

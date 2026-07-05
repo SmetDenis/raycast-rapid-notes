@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { sanitizeFilename, noteFilename } from "./filename";
+import { sanitizeFilename, uniqueFilename } from "./filename";
 
 describe("sanitizeFilename", () => {
   test("replaces characters forbidden on Windows with a dash", () => {
@@ -17,12 +17,15 @@ describe("sanitizeFilename", () => {
   });
 });
 
-describe("noteFilename", () => {
-  test("appends the .md extension to a clean stamp", () => {
-    expect(noteFilename("2026-07-05-1432")).toBe("2026-07-05-1432.md");
+describe("uniqueFilename", () => {
+  test("returns the plain sanitized stamp + .md when nothing collides", () => {
+    expect(uniqueFilename("2026-07-05T14:32:09", () => false)).toBe(
+      "2026-07-05T14-32-09.md",
+    );
   });
 
-  test("sanitizes the stamp before adding the extension", () => {
-    expect(noteFilename("2026-07-05T14:32")).toBe("2026-07-05T14-32.md");
+  test("adds a numeric suffix until it finds a free name", () => {
+    const taken = new Set(["note.md", "note-2.md"]);
+    expect(uniqueFilename("note", (name) => taken.has(name))).toBe("note-3.md");
   });
 });

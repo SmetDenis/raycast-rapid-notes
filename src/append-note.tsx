@@ -10,10 +10,17 @@ import {
   showToast,
 } from "@raycast/api";
 import { useEffect, useState } from "react";
+import { formatDate } from "./lib/datetime";
+import { upsertUpdatedField } from "./lib/frontmatter";
 import { applyAppend } from "./lib/note";
 import { renderTemplate } from "./lib/template";
 import { buildTemplateVars } from "./lib/vars";
-import { readActiveTab, readFile, readSelection, writeFile } from "./shared";
+import {
+  readFile,
+  readSelectionOrClipboard,
+  readSource,
+  writeFile,
+} from "./shared";
 
 interface Values {
   content: string;
@@ -25,14 +32,19 @@ export default function AppendNoteCommand() {
   const [content, setContent] = useState("");
   const [url, setUrl] = useState("");
   const [tabTitle, setTabTitle] = useState("");
+  const [app, setApp] = useState("");
+  const [fromClipboard, setFromClipboard] = useState(false);
   const [contentError, setContentError] = useState<string | undefined>();
 
   useEffect(() => {
     void (async () => {
-      setContent(await readSelection());
-      const tab = await readActiveTab();
-      setUrl(tab.url);
-      setTabTitle(tab.title);
+      const selection = await readSelectionOrClipboard(prefs.clipboardFallback);
+      setContent(selection.text);
+      setFromClipboard(selection.fromClipboard);
+      const source = await readSource();
+      setUrl(source.url);
+      setTabTitle(source.title);
+      setApp(source.app);
     })();
   }, []);
 
@@ -42,20 +54,24 @@ export default function AppendNoteCommand() {
       return;
     }
     try {
+      const now = new Date();
       const line = renderTemplate(
         prefs.appendTemplate,
         buildTemplateVars({
-          content: values.content.trim(),
-          url: values.url.trim(),
+          content: values.content,
+          url: values.url,
           title: tabTitle,
-          now: new Date(),
+          app,
+          now,
           dateFormat: prefs.dateFormat,
         }),
       );
       const current = readFile(prefs.appendTargetFile);
+      const appended = applyAppend(current, prefs.appendHeading, line);
+      // Refresh `updated` if the target already has frontmatter (no-op otherwise).
       writeFile(
         prefs.appendTargetFile,
-        applyAppend(current, prefs.appendHeading, line),
+        upsertUpdatedField(appended, formatDate(now, prefs.dateFormat)),
       );
       await showToast({ style: Toast.Style.Success, title: "Appended" });
       await popToRoot();
@@ -86,6 +102,9 @@ export default function AppendNoteCommand() {
         </ActionPanel>
       }
     >
+      {fromClipboard && (
+        <Form.Description text="Text was taken from the clipboard — nothing was selected." />
+      )}
       <Form.TextArea
         id="content"
         title="Text"
@@ -94,6 +113,7 @@ export default function AppendNoteCommand() {
         error={contentError}
         onChange={(value) => {
           setContent(value);
+          if (fromClipboard) setFromClipboard(false);
           if (value.trim()) setContentError(undefined);
         }}
         autoFocus

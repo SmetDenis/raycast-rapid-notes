@@ -18,22 +18,79 @@ describe("applyAppend", () => {
 });
 
 describe("buildNewNote", () => {
-  test("composes frontmatter, a blank line, the body, and a trailing newline", () => {
+  // Frontmatter block for a titled note without a source_url.
+  const fm = (created: string, tags: string, title: string) =>
+    `---\ncreated: ${created}\ntags: ${tags}\ntitle: ${title}\ntype: task\ntask_status: active\n---`;
+
+  test("composes frontmatter, the body on the next line, and a trailing newline", () => {
     expect(
       buildNewNote({
         created: "2026-07-05T14:32:09",
         tags: ["work"],
         title: "T",
+        sourceUrl: "",
         body: "hello",
       }),
-    ).toBe(
-      "---\ncreated: 2026-07-05T14:32:09\ntags: [work]\ntitle: T\n---\n\nhello\n",
-    );
+    ).toBe(`${fm("2026-07-05T14:32:09", "[work]", "T")}\nhello\n`);
   });
 
   test("omits the body block when the body is empty", () => {
-    expect(buildNewNote({ created: "x", tags: [], title: "T", body: "" })).toBe(
-      "---\ncreated: x\ntags: []\ntitle: T\n---\n",
-    );
+    expect(
+      buildNewNote({
+        created: "x",
+        tags: [],
+        title: "T",
+        sourceUrl: "",
+        body: "",
+      }),
+    ).toBe(`${fm("x", "[]", "T")}\n`);
+  });
+
+  test("preserves intentional trailing newlines in the body", () => {
+    expect(
+      buildNewNote({
+        created: "x",
+        tags: [],
+        title: "T",
+        sourceUrl: "",
+        body: "hello\n\n",
+      }),
+    ).toBe(`${fm("x", "[]", "T")}\nhello\n\n`);
+  });
+
+  test("preserves internal blank lines in the body", () => {
+    expect(
+      buildNewNote({
+        created: "x",
+        tags: [],
+        title: "T",
+        sourceUrl: "",
+        body: "a\n\nb",
+      }),
+    ).toBe(`${fm("x", "[]", "T")}\na\n\nb\n`);
+  });
+
+  test("treats a whitespace-only body as empty", () => {
+    expect(
+      buildNewNote({
+        created: "x",
+        tags: [],
+        title: "T",
+        sourceUrl: "",
+        body: "  \n",
+      }),
+    ).toBe(`${fm("x", "[]", "T")}\n`);
+  });
+
+  test("includes source_url in the frontmatter when provided", () => {
+    expect(
+      buildNewNote({
+        created: "x",
+        tags: [],
+        title: "T",
+        sourceUrl: "https://a.com",
+        body: "b",
+      }),
+    ).toContain('source_url: "https://a.com"');
   });
 });
