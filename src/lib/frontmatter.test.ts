@@ -1,169 +1,117 @@
 import { describe, expect, test } from "vitest";
-import { buildFrontmatter, upsertUpdatedField } from "./frontmatter";
+import {
+  buildFrontmatter,
+  parseExtraFrontmatter,
+  upsertUpdatedField,
+} from "./frontmatter";
 
 describe("buildFrontmatter", () => {
-  test("builds a full block with title, source_url and the fixed type/status", () => {
+  const base = {
+    extra: [
+      { key: "type", value: "task" },
+      { key: "task_status", value: "active" },
+    ],
+    created: "2026-07-05T14:32:09",
+    title: "",
+    project: "",
+    tags: [] as string[],
+    sourceUrl: "",
+  };
+  const mk = (o: Partial<typeof base>) => buildFrontmatter({ ...base, ...o });
+
+  test("orders extra fields, then created, title, project, tags, source_url", () => {
     expect(
-      buildFrontmatter({
-        created: "2026-07-05T14:32:09",
-        tags: ["work", "home"],
+      mk({
         title: "Buy milk",
+        project: "Work",
+        tags: ["work", "home"],
         sourceUrl: "https://example.com",
       }),
     ).toBe(
       [
         "---",
-        "created: 2026-07-05T14:32:09",
-        "tags: [work, home]",
-        'title: "Buy milk"',
-        'source_url: "https://example.com"',
         "type: task",
         "task_status: active",
+        "created: 2026-07-05T14:32:09",
+        'title: "Buy milk"',
+        "project: Work",
+        "tags: [work, home]",
+        'source_url: "https://example.com"',
         "---",
       ].join("\n"),
     );
   });
 
   test("omits the title line when the title is empty", () => {
-    expect(
-      buildFrontmatter({ created: "x", tags: [], title: "", sourceUrl: "" }),
-    ).toBe(
-      [
-        "---",
-        "created: x",
-        "tags: []",
-        "type: task",
-        "task_status: active",
-        "---",
-      ].join("\n"),
-    );
+    expect(mk({})).not.toContain("title:");
+  });
+
+  test("omits the project line when the project is empty", () => {
+    expect(mk({ title: "T" })).not.toContain("project:");
+  });
+
+  test("emits the project line when the project is non-empty", () => {
+    expect(mk({ project: "Home" })).toContain("project: Home");
   });
 
   test("omits source_url when the url is empty", () => {
-    const out = buildFrontmatter({
-      created: "x",
-      tags: [],
-      title: "T",
-      sourceUrl: "",
-    });
-    expect(out).not.toContain("source_url");
-    expect(out).toContain("title: T");
+    expect(mk({ title: "T" })).not.toContain("source_url");
   });
 
   test("includes a quoted source_url when the url is non-empty", () => {
-    expect(
-      buildFrontmatter({
-        created: "x",
-        tags: [],
-        title: "T",
-        sourceUrl: "https://a.com/p?q=1",
-      }),
-    ).toContain('source_url: "https://a.com/p?q=1"');
+    expect(mk({ sourceUrl: "https://a.com/p?q=1" })).toContain(
+      'source_url: "https://a.com/p?q=1"',
+    );
+  });
+
+  test("renders each extra field value through yamlScalar", () => {
+    expect(mk({ extra: [{ key: "note", value: "a: b" }] })).toContain(
+      'note: "a: b"',
+    );
+  });
+
+  test("emits no extra lines when the extra list is empty", () => {
+    expect(mk({ extra: [] })).toBe(
+      ["---", "created: 2026-07-05T14:32:09", "tags: []", "---"].join("\n"),
+    );
   });
 
   test("leaves the created value unquoted", () => {
-    expect(
-      buildFrontmatter({
-        created: "2026-07-05T14:32:09",
-        tags: [],
-        title: "T",
-        sourceUrl: "",
-      }),
-    ).toContain("created: 2026-07-05T14:32:09");
+    expect(mk({})).toContain("created: 2026-07-05T14:32:09");
   });
 
   test("renders an empty tag list as []", () => {
-    expect(
-      buildFrontmatter({ created: "x", tags: [], title: "T", sourceUrl: "" }),
-    ).toContain("tags: []");
-  });
-
-  test("adds fixed type and task_status fields", () => {
-    const out = buildFrontmatter({
-      created: "x",
-      tags: [],
-      title: "T",
-      sourceUrl: "",
-    });
-    expect(out).toContain("type: task");
-    expect(out).toContain("task_status: active");
+    expect(mk({})).toContain("tags: []");
   });
 
   test("quotes a title that contains a colon", () => {
-    expect(
-      buildFrontmatter({
-        created: "x",
-        tags: [],
-        title: "Re: hello",
-        sourceUrl: "",
-      }),
-    ).toContain('title: "Re: hello"');
+    expect(mk({ title: "Re: hello" })).toContain('title: "Re: hello"');
   });
 
   test("escapes double quotes inside a quoted title", () => {
-    expect(
-      buildFrontmatter({
-        created: "x",
-        tags: [],
-        title: 'say "hi"',
-        sourceUrl: "",
-      }),
-    ).toContain('title: "say \\"hi\\""');
+    expect(mk({ title: 'say "hi"' })).toContain('title: "say \\"hi\\""');
   });
 
   test("keeps a simple word title unquoted", () => {
-    expect(
-      buildFrontmatter({
-        created: "x",
-        tags: [],
-        title: "Todo",
-        sourceUrl: "",
-      }),
-    ).toContain("title: Todo");
-  });
-
-  test("quotes a tag that contains a space inside the flow list", () => {
-    expect(
-      buildFrontmatter({
-        created: "x",
-        tags: ["my tag", "home"],
-        title: "n",
-        sourceUrl: "",
-      }),
-    ).toContain('tags: ["my tag", home]');
+    expect(mk({ title: "Todo" })).toContain("title: Todo");
   });
 
   test("quotes a numeric-looking title so YAML keeps it a string", () => {
-    expect(
-      buildFrontmatter({
-        created: "x",
-        tags: [],
-        title: "2026",
-        sourceUrl: "",
-      }),
-    ).toContain('title: "2026"');
+    expect(mk({ title: "2026" })).toContain('title: "2026"');
   });
 
   test("quotes a YAML boolean keyword in the title", () => {
-    expect(
-      buildFrontmatter({
-        created: "x",
-        tags: [],
-        title: "true",
-        sourceUrl: "",
-      }),
-    ).toContain('title: "true"');
+    expect(mk({ title: "true" })).toContain('title: "true"');
   });
 
-  test("quotes a YAML null keyword used as a tag", () => {
-    expect(
-      buildFrontmatter({
-        created: "x",
-        tags: ["null"],
-        title: "n",
-        sourceUrl: "",
-      }),
-    ).toContain('tags: ["null"]');
+  test("quotes a tag that contains a space inside the flow list", () => {
+    expect(mk({ tags: ["my tag", "home"] })).toContain(
+      'tags: ["my tag", home]',
+    );
+  });
+
+  test("quotes a project value that contains a space", () => {
+    expect(mk({ project: "Big Client" })).toContain('project: "Big Client"');
   });
 });
 
@@ -204,5 +152,50 @@ describe("upsertUpdatedField", () => {
     expect(upsertUpdatedField(input, "NOW")).toBe(
       "---\nupdated_by: me\nupdated: NOW\n---\nx\n",
     );
+  });
+});
+
+describe("parseExtraFrontmatter", () => {
+  test("returns an empty list for an empty or whitespace preference", () => {
+    expect(parseExtraFrontmatter("")).toEqual([]);
+    expect(parseExtraFrontmatter("   ")).toEqual([]);
+  });
+
+  test("parses semicolon-separated key/value pairs, in order", () => {
+    expect(parseExtraFrontmatter("type: task; task_status: active")).toEqual([
+      { key: "type", value: "task" },
+      { key: "task_status", value: "active" },
+    ]);
+  });
+
+  test("drops empty segments from stray or trailing semicolons", () => {
+    expect(parseExtraFrontmatter("type: task;; ; ")).toEqual([
+      { key: "type", value: "task" },
+    ]);
+  });
+
+  test("splits only on the first colon so values may contain colons", () => {
+    expect(parseExtraFrontmatter("ref: see http://x")).toEqual([
+      { key: "ref", value: "see http://x" },
+    ]);
+  });
+
+  test("throws on a segment without a colon", () => {
+    expect(() => parseExtraFrontmatter("type task")).toThrow();
+  });
+
+  test("throws on an empty key", () => {
+    expect(() => parseExtraFrontmatter(": value")).toThrow();
+  });
+
+  test("throws on a reserved structural key, case-insensitively", () => {
+    expect(() => parseExtraFrontmatter("title: x")).toThrow();
+    expect(() => parseExtraFrontmatter("Created: x")).toThrow();
+    expect(() => parseExtraFrontmatter("source_url: x")).toThrow();
+    expect(() => parseExtraFrontmatter("project: x")).toThrow();
+  });
+
+  test("throws on a duplicate key, case-insensitively", () => {
+    expect(() => parseExtraFrontmatter("type: a; TYPE: b")).toThrow();
   });
 });

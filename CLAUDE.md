@@ -1,8 +1,9 @@
 # rapid-notes — Claude Code instructions
 
-Raycast extension (TypeScript/React) for fast note capture: append selected or typed text to a
-Markdown file (as checklist/todo lines) or create a new timestamped note, formatted via a
-user-configured template with placeholders. Local/personal for now; may be published to the
+Raycast extension (TypeScript/React) for fast note capture. Four capture operations, each an
+instant (`no-view`) command plus one shared editable Form (`rapid-note`): append a checklist item
+or a text block under a heading in a file, or create a new timestamped task/note file with YAML
+frontmatter. Template- and preference-driven. Local/personal for now; may be published to the
 Raycast Store later.
 
 ## Critical
@@ -10,8 +11,9 @@ Raycast Store later.
 - Keep ALL business logic in `src/lib/` free of any `@raycast/api` import. Command files are thin
   adapters that call `lib`. Reason: `@raycast/api` only runs inside Raycast, so anything importing
   it is not unit-testable — `lib` is where logic and tests live.
-- This tool is deliberately minimal (quick checklist/todo capture + one "new note"). Push back on
-  feature creep and over-engineering before adding any command, option, or dependency.
+- This tool is deliberately minimal (append checklist/note + create task/note, instant or via one
+  shared Form). Push back on feature creep and over-engineering before adding any command, option, or
+  dependency.
 - Do not add Store-only polish (screenshots, marketing `README.md`, `CHANGELOG.md`, `keywords`,
   `contributors`) while the extension is local-only — but keep the required manifest fields (see
   Architecture). Add polish only when we decide to publish.
@@ -36,10 +38,13 @@ publish flow depend on them; do not reimplement logic in the Makefile or the two
 
 ## Architecture
 
-- Command entry points (thin adapters, one file each):
-  - `src/append-note.tsx` — `view` mode, Form (edit before save).
-  - `src/append-note-silent.ts` — `no-view` mode, instant save + `showHUD`.
-  - `src/new-note.tsx` — `view` mode, Form.
+- Command entry points (thin adapters). Four `no-view` (instant, hotkey-friendly) commands + one Form:
+  - `src/append-checklist.ts`, `src/append-note.ts` — `no-view`, append under a heading in a file.
+  - `src/new-task.ts`, `src/new-note.ts` — `no-view`, create a new frontmatter file in a directory.
+  - `src/rapid-note.tsx` — `view` Form; a target dropdown `{checklist|append|task|note}` adapts the
+    fields (append → content/project; create → also title/tags) and dispatches to `lib`.
+  - `src/capture.ts` — non-command adapter helper (`@raycast/api`): `runSilentAppend`/`runSilentCreate`
+    shared by the four `no-view` commands. Not in `lib`, not unit-tested — verify via `make dev`.
 - `src/lib/` — pure core, no `@raycast/api`: template/placeholder rendering, date + timestamp-filename
   formatting, Markdown append (to file end or under a configurable heading), new-note + YAML frontmatter
   composition (escaping-safe), tag parsing, browser-app detection.
@@ -57,19 +62,23 @@ publish flow depend on them; do not reimplement logic in the Makefile or the two
   recommended. Preference types include `file` and `directory` — use them for the append target
   file and the new-note directory. Command code reads prefs via the generated
   `Preferences.<Command>` types (in git-ignored `raycast-env.d.ts`, produced by `ray build`/`dev`).
+  Target `file`/`directory` prefs are non-required with NO default (→ generated type
+  `string | undefined`) and runtime-guarded, so the user configures only the targets they use.
 
-## Preferences (extension-level, shared)
+## Preferences (extension-level, namespaced per target)
 
-- Extension-level so the Form and Silent append commands read identical config: append target
-  file, append heading (leading `#`s set the level, default H1; empty ⇒ append to end of file),
-  append template, new-note directory,
-  new-note body template.
+- All prefs are extension-level so a target's `no-view` command and the Form read identical config.
+  NO global template — each target owns its file/dir + template (+ heading for append, frontmatter
+  for create). Keys: `checklist{File,Heading,Template}`, `appendNote{File,Heading,Template}`,
+  `task{Directory,Template,Frontmatter}`, `note{Directory,Template,Frontmatter}`; shared
+  `dateFormat`, `filenameDateFormat`, `defaultTags`, `clipboardFallback`, `mergeSeparator`.
 - Template placeholders (all built in `lib/vars.buildTemplateVars`): each captured field has a RAW
   form (trimmed, no label, `""` when empty) and a FORMATTED form (a labeled line ending in `\n`,
   `""` when empty — so it vanishes cleanly; the baked-in `\n` means it can't sit inline).
-  Raw: `{content}` `{url}` `{title}` `{app}` `{page}`; formatted: `{content_f}` `{url_f}` `{title_f}`
-  `{app_f}` `{page_f}`; plus `{date}` (`EEE, d MMMM yyyy`) `{time}` (`HH:mm`) `{datetime}` (the
-  `dateFormat` pref). Labels: `From app: …` / `Url: <…>` / `Title: …` / `Page: …`. `{app}` is the
+  Raw: `{content}` `{url}` `{title}` `{app}` `{project}` `{page}`; formatted: `{content_f}` `{url_f}`
+  `{title_f}` `{app_f}` `{project_f}` `{page_f}`; plus `{date}` (`EEE, d MMMM yyyy`) `{time}` (`HH:mm`)
+  `{datetime}` (the `dateFormat` pref). Labels: `From app: …` / `Url: <…>` / `Title: …` /
+  `Project: …` / `Page: …`. `{app}` is the
   frontmost source-app name (ANY app, not just browsers). `{page}` is an adaptive Markdown link:
   `[title](url)`, else `<url>`, else the title, else `""`. `{content_f}` wraps the content VERBATIM
   in a four-backtick `text` code fence so pasted triple-backtick blocks can't break out.
@@ -78,32 +87,36 @@ publish flow depend on them; do not reimplement logic in the Makefile or the two
   Trim policy: the capture is returned VERBATIM (`readSelectionOrClipboard` no longer trims);
   `buildTemplateVars` trims the raw forms and `{content_f}` stays as-is; emptiness is judged on the
   trimmed value. Rendered template output is NEVER trimmed, so intentional template `\n` survives.
-  Defaults: append `- [ ] {content}`; new-note body `{content}` (the title lives in frontmatter,
-  not a body heading). No `{clipboard}` placeholder — commands prefill `{content}` from the
+  Defaults: checklist `- [ ] **{date} {time}**: {content}`; append-note `{content}\n\n_{date} {time} · {app}_`;
+  task body `{content}`; note body `{content}\n\n{page_f}`. `{project}` reaches an APPEND target only if
+  its template references it (default templates don't → a project passed to
+  append is silently dropped, by design); in CREATE it is structural (title prefix + `project:`
+  field). No `{clipboard}` placeholder — commands prefill `{content}` from the
   selection; only when the `clipboardFallback` preference is ON do they fall back to the clipboard
   if the selection is empty (for non-AX apps like Telegram) — this applies to Silent too. The
   manual "paste clipboard" action (Form only) always appends.
-- New Rapid Note only: writes YAML frontmatter — generated structurally in `lib` (NOT from the
-  template) — then the body template. Fields: `created` (ISO local datetime), `tags` (YAML list,
-  empty ⇒ `[]`), `title` (omitted when empty), `source_url` (browser URL; omitted when empty), and
-  fixed `type: task` + `task_status: active`. Tags/title come from the Form; the filename uses the
-  timestamp, so an untitled note is still identifiable.
+- Create (New Task / New Note) writes YAML frontmatter — generated STRUCTURALLY in `lib`
+  (`buildCreateFile`), never from the template — then the body template. Field order: configurable
+  static fields from the `*Frontmatter` pref (`parseExtraFrontmatter`, `key: value; key2: value2`;
+  defaults `type: task; task_status: active` / `type: note`) → `created` → `title` → `project` →
+  `tags` → `source_url` (`title`/`project`/`source_url` omitted when empty). `title` is built by
+  `composeCreateTitle`: `{project}: ` prefix when project present + a `{date} {time}` fallback when the
+  user title is empty (so a create ALWAYS has a title). The filename is the timestamp, so an untitled
+  note is still identifiable.
 - The append commands, when their target already has frontmatter, refresh an `updated` field to now
   (same `dateFormat` as `created`) via `upsertUpdatedField`; files without frontmatter are left
   untouched (no block injected). New Rapid Note ALWAYS writes a fresh file (never merges), so it has
   no `updated`.
-- Date format: a `textfield` preference holding a date-fns format string; default
-  `yyyy-MM-dd'T'HH:mm:ss`; applies to `created` and `{datetime}`. Raycast preferences have no
-  textarea type — comma-separated values live in single-line `textfield`s.
-- Default tags: a comma-separated `textfield` preference. The New Rapid Note form prefills its tags
-  field from it; the user edits per note (prefill/replace, not merge).
-- Inline `text` argument (all three commands, optional single-line Raycast argument, read via
-  `LaunchProps`): the typed text MERGES with the capture into one `{content}` through
-  `lib/content.mergeCapturedContent` — argument-first (`arg + sep + capture`), separator only when
-  BOTH are present, capture kept verbatim, nullish argument treated as empty. The `mergeSeparator`
-  dropdown pref picks the glyph via `lib/content.separatorGlyph`: `semicolon` (default ⇒ `"; "`) /
-  `space` / `newline`. The argument always feeds `{content}` (never new-note's title); Silent's
-  empty-check runs on the merged value, so a typed argument alone satisfies it.
+- `dateFormat` (default `yyyy-MM-dd'T'HH:mm:ss`) → `created` + `{datetime}`; `filenameDateFormat`
+  (default `yyyy-MM-dd-HHmmss`) → create filenames. Raycast prefs have no textarea — comma/semicolon
+  lists live in single-line `textfield`s.
+- Default tags: a comma-separated `textfield`. Create uses it — the Form prefills its tags field
+  (prefill/replace, not merge); the Silent create commands read it directly.
+- Arguments (optional single-line, via `LaunchProps`): `text` merges with the capture into one
+  `{content}` via `lib/content.mergeCapturedContent` (argument-first, separator only when BOTH
+  present, capture verbatim, nullish → empty); `mergeSeparator` → `separatorGlyph`: `semicolon`
+  (default `"; "`) / `space` / `newline`. `project` (all commands) feeds `{project}`; create commands
+  also take a `title` argument (3-arg Raycast limit). `text` always feeds `{content}`, never the title.
 
 ## Gotchas
 
@@ -129,10 +142,15 @@ publish flow depend on them; do not reimplement logic in the Makefile or the two
   `lib/markdown.appendUnderHeading(content, level, text, line)` matches at the EXACT level and
   case-insensitively, and the section ends at the next heading of ANY level (a nested sub-heading
   closes it — it is NOT kept inside).
-- YAML frontmatter (New Rapid Note) is the other bug-prone piece: `title`/`source_url` can contain
-  `:`, `#`, or quotes and tags can contain spaces — quote/escape structurally (all via `yamlScalar`)
-  and test special-char titles, empty tags, and multi-tag cases. Never hand-interpolate YAML through
-  the template.
+- YAML frontmatter (create) is the other bug-prone piece — two layers: (1) structural fields
+  (`title`/`project`/`source_url`/tags, `:`/`#`/quotes/spaces) escape via `yamlScalar`; (2) the user's
+  `*Frontmatter` pref (`parseExtraFrontmatter`) must FAIL LOUDLY (throw → HUD/Toast + abort, never
+  silent-corrupt) on a segment without `:`, an empty/reserved key
+  (`created/title/project/tags/source_url/updated`), or a duplicate — a `;` inside a value is
+  unsupported and also fails loud. Never hand-interpolate YAML through the template.
+- Empty-input guard (create): the title always has a `{date} {time}` fallback, so it can't gate
+  emptiness — `lib/note.isEmptyCapture` runs on content AND title AND project (all blank ⇒ abort) so a
+  stray hotkey can't leave a junk file; a title-only or project-only capture is valid.
 - Filenames must avoid the characters Windows forbids too (`\ / : * ? " < > |`): default is a
   colon-free `yyyy-MM-dd-HHmmss` (seconds ⇒ collisions near-impossible; `uniqueFilename` adds a
   `-2`/`-3` suffix on the rare clash so a note is never overwritten/merged). Sanitize any title used
@@ -148,8 +166,10 @@ publish flow depend on them; do not reimplement logic in the Makefile or the two
 Prefer these over memory when writing extension code or answering Raycast API/tooling questions —
 they are current, training data is not. Search them proactively before guessing.
 
-- Context7 (`query-docs`): `/llmstxt/developers_raycast_llms-full_txt` — full API reference (deepest
-  coverage); `/raycast/extensions` — real extension source, for "how do others do X".
+- Context7 (`query-docs`): `/raycast/extensions` — real extension source, for "how do others do X".
+  CAUTION: `/llmstxt/developers_raycast_llms-full_txt` has HALLUCINATED Raycast specifics (non-existent
+  `"silent"` command mode, fake argument `loadOptions`) — verify anything from it against the official
+  pages below (`jina read_url`) or `gh`, which are authoritative.
 - Discovery index (lists every doc page): `https://developers.raycast.com/llms.txt`.
 - Key pages under `https://developers.raycast.com/`: manifest `information/manifest`; Form
   `api-reference/user-interface/form`; selection & frontmost app `api-reference/environment`;

@@ -1,4 +1,8 @@
-import { buildFrontmatter } from "./frontmatter";
+import {
+  buildFrontmatter,
+  parseExtraFrontmatter,
+  type FrontmatterField,
+} from "./frontmatter";
 import { appendToEnd, appendUnderHeading } from "./markdown";
 
 interface ParsedHeading {
@@ -36,9 +40,11 @@ export function applyAppend(
 }
 
 export interface NewNoteInput {
+  extra: FrontmatterField[];
   created: string;
-  tags: string[];
   title: string;
+  project: string;
+  tags: string[];
   sourceUrl: string;
   body: string;
 }
@@ -50,14 +56,104 @@ export interface NewNoteInput {
  * trailing newline is added only when the body lacks one. A blank body is omitted.
  */
 export function buildNewNote({
+  extra,
   created,
-  tags,
   title,
+  project,
+  tags,
   sourceUrl,
   body,
 }: NewNoteInput): string {
-  const fm = buildFrontmatter({ created, tags, title, sourceUrl });
+  const fm = buildFrontmatter({
+    extra,
+    created,
+    title,
+    project,
+    tags,
+    sourceUrl,
+  });
   if (body.trim() === "") return `${fm}\n`;
   const withNewline = body.endsWith("\n") ? body : `${body}\n`;
   return `${fm}\n${withNewline}`;
+}
+
+/**
+ * Compose a new note's title: prefix `{project}: ` only when a project is given, and fall
+ * back to `dateFallback` (a pre-formatted `{date} {time}`) when the title is empty — so a
+ * create always has a title. Project and title are trimmed.
+ */
+export function composeCreateTitle({
+  project,
+  title,
+  dateFallback,
+}: {
+  project: string;
+  title: string;
+  dateFallback: string;
+}): string {
+  const base = title.trim() || dateFallback;
+  const p = project.trim();
+  return p ? `${p}: ${base}` : base;
+}
+
+/**
+ * True only when a create has nothing worth saving — content, title and project are all
+ * blank. A title-only (or project-only) capture is valid and must NOT count as empty. This
+ * runs on the captured/merged content, never on the fallback-filled title, so an empty
+ * hotkey press cannot silently produce a junk file.
+ */
+export function isEmptyCapture({
+  content,
+  title,
+  project,
+}: {
+  content: string;
+  title: string;
+  project: string;
+}): boolean {
+  return content.trim() === "" && title.trim() === "" && project.trim() === "";
+}
+
+export interface CreateFileInput {
+  /** Raw configurable frontmatter pref, e.g. `type: task; task_status: active`. Throws when malformed. */
+  frontmatterPref: string;
+  created: string;
+  /** Raw user title (empty → date/time fallback). */
+  title: string;
+  project: string;
+  /** Pre-formatted `{date} {time}` used when the title is empty. */
+  dateFallback: string;
+  tags: string[];
+  sourceUrl: string;
+  /** Already-rendered body. */
+  body: string;
+}
+
+/**
+ * Compose a full create-note file from captured input: parse the configurable frontmatter
+ * pref into structural extra fields (throws LOUDLY on a malformed/reserved/duplicate key —
+ * the caller surfaces it and aborts), synthesise the title (project prefix + date/time
+ * fallback), and build the note. Keeps the command adapter thin: capture → this → write.
+ */
+export function buildCreateFile({
+  frontmatterPref,
+  created,
+  title,
+  project,
+  dateFallback,
+  tags,
+  sourceUrl,
+  body,
+}: CreateFileInput): string {
+  const extra = parseExtraFrontmatter(frontmatterPref);
+  const composedTitle = composeCreateTitle({ project, title, dateFallback });
+  return buildNewNote({
+    extra,
+    created,
+    title: composedTitle,
+    project: project.trim(),
+    tags,
+    sourceUrl,
+    body,
+  });
 }

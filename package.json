@@ -2,7 +2,7 @@
   "$schema": "https://www.raycast.com/schemas/extension.json",
   "name": "rapid-notes",
   "title": "Rapid Notes",
-  "description": "Quickly capture notes: append selected or typed text to a Markdown file as checklist items, or create a new timestamped note from a template.",
+  "description": "Quickly capture notes: append a checklist item or a block under a heading, or create a new timestamped task or note file with YAML frontmatter — instantly or via an editable form.",
   "icon": "icon.png",
   "author": "smetdenis",
   "categories": [
@@ -15,43 +15,113 @@
   ],
   "commands": [
     {
-      "name": "append-note",
-      "title": "Append Rapid Item",
-      "description": "Append selected or typed text to your Markdown file, with an editable form.",
-      "mode": "view",
-      "arguments": [
-        {
-          "name": "text",
-          "type": "text",
-          "placeholder": "Type note text",
-          "required": false
-        }
-      ]
-    },
-    {
-      "name": "append-note-silent",
-      "title": "Append Rapid Item (Silent)",
-      "description": "Instantly append the selected text to your Markdown file without a form.",
+      "name": "append-checklist",
+      "title": "Append Checklist",
+      "description": "Instantly append the selected or typed text as a checklist item under a heading in your Markdown file.",
       "mode": "no-view",
       "arguments": [
         {
           "name": "text",
           "type": "text",
-          "placeholder": "Type note text",
+          "placeholder": "Checklist text",
+          "required": false
+        },
+        {
+          "name": "project",
+          "type": "text",
+          "placeholder": "Project",
+          "required": false
+        }
+      ]
+    },
+    {
+      "name": "append-note",
+      "title": "Append Note",
+      "description": "Instantly append the selected or typed text as a block under a heading in your notes file.",
+      "mode": "no-view",
+      "arguments": [
+        {
+          "name": "text",
+          "type": "text",
+          "placeholder": "Note text",
+          "required": false
+        },
+        {
+          "name": "project",
+          "type": "text",
+          "placeholder": "Project",
+          "required": false
+        }
+      ]
+    },
+    {
+      "name": "new-task",
+      "title": "New Task",
+      "description": "Instantly create a new task file with YAML frontmatter in your task directory.",
+      "mode": "no-view",
+      "arguments": [
+        {
+          "name": "text",
+          "type": "text",
+          "placeholder": "Task text",
+          "required": false
+        },
+        {
+          "name": "project",
+          "type": "text",
+          "placeholder": "Project",
+          "required": false
+        },
+        {
+          "name": "title",
+          "type": "text",
+          "placeholder": "Title",
           "required": false
         }
       ]
     },
     {
       "name": "new-note",
-      "title": "New Rapid Note",
-      "description": "Create a new timestamped Markdown note with frontmatter from a template.",
+      "title": "New Note",
+      "description": "Instantly create a new note file with YAML frontmatter in your note directory.",
+      "mode": "no-view",
+      "arguments": [
+        {
+          "name": "text",
+          "type": "text",
+          "placeholder": "Note text",
+          "required": false
+        },
+        {
+          "name": "project",
+          "type": "text",
+          "placeholder": "Project",
+          "required": false
+        },
+        {
+          "name": "title",
+          "type": "text",
+          "placeholder": "Title",
+          "required": false
+        }
+      ]
+    },
+    {
+      "name": "rapid-note",
+      "title": "Rapid Note",
+      "description": "Capture with an editable form: append a checklist item or note, or create a new task or note.",
       "mode": "view",
       "arguments": [
         {
           "name": "text",
           "type": "text",
-          "placeholder": "Type note text",
+          "placeholder": "Text",
+          "required": false
+        },
+        {
+          "name": "project",
+          "type": "text",
+          "placeholder": "Project",
           "required": false
         }
       ]
@@ -59,42 +129,96 @@
   ],
   "preferences": [
     {
-      "name": "appendTargetFile",
-      "title": "Append Rapid Item: Target File",
-      "description": "The Markdown file that Append commands write to.",
+      "name": "checklistFile",
+      "title": "Checklist: File",
+      "description": "Markdown file the Append Checklist command writes to.",
       "type": "file",
-      "required": true
+      "required": false
     },
     {
-      "name": "appendHeading",
-      "title": "Append Rapid Item: Heading",
-      "description": "If set, append under this heading (matched case-insensitively). Leading #s set the level, e.g. '# Inbox', '### Tasks', or '## **Title**'; plain text with no #s is treated as H1. Leave empty to append to the end of the file.",
+      "name": "checklistHeading",
+      "title": "Checklist: Heading",
+      "description": "Append under this heading (case-insensitive). Leading #s set the level, e.g. '## Tasks'; plain text is H1; leave empty to append to the end of the file.",
       "type": "textfield",
       "required": false,
       "default": ""
     },
     {
-      "name": "appendTemplate",
-      "title": "Append Rapid Item: Template",
-      "description": "Template for each appended line. Values: {content} {url} {title} {app} {page} {date} {time} {datetime}. Formatted (label + newline): {content_f} {url_f} {title_f} {app_f} {page_f}.",
+      "name": "checklistTemplate",
+      "title": "Checklist: Template",
+      "description": "Template per appended item. Placeholders: {content} {url} {title} {app} {project} {page} {date} {time} {datetime}; formatted (label + newline): {content_f} {url_f} {title_f} {app_f} {project_f} {page_f}.",
       "type": "textfield",
       "required": false,
-      "default": "- [ ] {content}"
+      "default": "- [ ] **{date} {time}**: {content}"
     },
     {
-      "name": "newNoteDirectory",
-      "title": "New Rapid Note: Directory",
-      "description": "Folder where new notes are created.",
+      "name": "appendNoteFile",
+      "title": "Append Note: File",
+      "description": "Markdown file the Append Note command writes to.",
+      "type": "file",
+      "required": false
+    },
+    {
+      "name": "appendNoteHeading",
+      "title": "Append Note: Heading",
+      "description": "Append under this heading (case-insensitive). Leading #s set the level; plain text is H1; leave empty to append to the end of the file.",
+      "type": "textfield",
+      "required": false,
+      "default": ""
+    },
+    {
+      "name": "appendNoteTemplate",
+      "title": "Append Note: Template",
+      "description": "Template per appended block. Placeholders: {content} {url} {title} {app} {project} {page} {date} {time} {datetime}; formatted (label + newline): {content_f} {url_f} {title_f} {app_f} {project_f} {page_f}.",
+      "type": "textfield",
+      "required": false,
+      "default": "{content}\\n\\n_{date} {time} · {app}_"
+    },
+    {
+      "name": "taskDirectory",
+      "title": "New Task: Directory",
+      "description": "Folder where new task files are created.",
       "type": "directory",
-      "required": true
+      "required": false
     },
     {
-      "name": "newNoteBodyTemplate",
-      "title": "New Rapid Note: Body Template",
-      "description": "Template for the note body; YAML frontmatter is added automatically. Values: {content} {url} {title} {app} {page} {date} {time} {datetime}. Formatted (label + newline): {content_f} {url_f} {title_f} {app_f} {page_f}.",
+      "name": "taskTemplate",
+      "title": "New Task: Body Template",
+      "description": "Template for the task body; YAML frontmatter is added automatically. Same placeholders as the append templates.",
       "type": "textfield",
       "required": false,
       "default": "{content}"
+    },
+    {
+      "name": "taskFrontmatter",
+      "title": "New Task: Frontmatter",
+      "description": "Extra YAML frontmatter as 'key: value; key2: value2'. Reserved keys (created, title, project, tags, source_url, updated) are set automatically and rejected here.",
+      "type": "textfield",
+      "required": false,
+      "default": "type: task; task_status: active"
+    },
+    {
+      "name": "noteDirectory",
+      "title": "New Note: Directory",
+      "description": "Folder where new note files are created.",
+      "type": "directory",
+      "required": false
+    },
+    {
+      "name": "noteTemplate",
+      "title": "New Note: Body Template",
+      "description": "Template for the note body; YAML frontmatter is added automatically. Same placeholders as the append templates.",
+      "type": "textfield",
+      "required": false,
+      "default": "{content}\\n\\n{page_f}"
+    },
+    {
+      "name": "noteFrontmatter",
+      "title": "New Note: Frontmatter",
+      "description": "Extra YAML frontmatter as 'key: value; key2: value2'. Reserved keys (created, title, project, tags, source_url, updated) are set automatically and rejected here.",
+      "type": "textfield",
+      "required": false,
+      "default": "type: note"
     },
     {
       "name": "dateFormat",
@@ -107,7 +231,7 @@
     {
       "name": "filenameDateFormat",
       "title": "Filename Date Format",
-      "description": "date-fns format for new-note filenames. Avoid characters invalid in filenames.",
+      "description": "date-fns format for new task/note filenames. Avoid characters invalid in filenames.",
       "type": "textfield",
       "required": false,
       "default": "yyyy-MM-dd-HHmmss"
@@ -115,7 +239,7 @@
     {
       "name": "defaultTags",
       "title": "Default Tags",
-      "description": "Comma-separated tags prefilled into the New Rapid Note form.",
+      "description": "Comma-separated tags used by New Task / New Note (prefilled into the form).",
       "type": "textfield",
       "required": false,
       "default": ""
@@ -124,7 +248,7 @@
       "name": "clipboardFallback",
       "title": "Clipboard Fallback",
       "label": "Use the clipboard when no text is selected",
-      "description": "When on, the Form commands fall back to the clipboard if nothing is selected — for apps like Telegram that don't expose their selection to a focused form. Copy the text first, then run the command.",
+      "description": "When on, commands fall back to the clipboard if nothing is selected — for apps like Telegram that don't expose their selection. Copy the text first, then run the command.",
       "type": "checkbox",
       "required": false,
       "default": false

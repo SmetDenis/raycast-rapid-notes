@@ -12,6 +12,7 @@ describe("buildTemplateVars", () => {
         url: "https://example.com",
         title: "Some title",
         app: "Telegram",
+        project: "Work",
         now: NOW,
         dateFormat: FMT,
       }),
@@ -21,12 +22,14 @@ describe("buildTemplateVars", () => {
       app: "Telegram",
       url: "https://example.com",
       title: "Some title",
+      project: "Work",
       page: "[Some title](https://example.com)",
       // Formatted variants — label/decoration + trailing newline.
       content_f: "````text\n  Selected text  \n````\n",
       app_f: "From app: Telegram\n",
       url_f: "Url: <https://example.com>\n",
       title_f: "Title: Some title\n",
+      project_f: "Project: Work\n",
       page_f: "Page: [Some title](https://example.com)\n",
       date: "Sun, 5 July 2026",
       time: "14:32",
@@ -34,12 +37,13 @@ describe("buildTemplateVars", () => {
     });
   });
 
-  test("collapses empty url/title/app (raw, _f, and page) to an empty string", () => {
+  test("collapses empty url/title/app/project (raw, _f, and page) to an empty string", () => {
     const v = buildTemplateVars({
       content: "x",
       url: "",
       title: "",
       app: "",
+      project: "",
       now: NOW,
       dateFormat: FMT,
     });
@@ -49,8 +53,24 @@ describe("buildTemplateVars", () => {
     expect(v.title_f).toBe("");
     expect(v.app).toBe("");
     expect(v.app_f).toBe("");
+    expect(v.project).toBe("");
+    expect(v.project_f).toBe("");
     expect(v.page).toBe("");
     expect(v.page_f).toBe("");
+  });
+
+  test("trims {project} and renders {project_f} as a labeled line", () => {
+    const v = buildTemplateVars({
+      content: "x",
+      url: "",
+      title: "",
+      app: "",
+      project: "  Home  ",
+      now: NOW,
+      dateFormat: FMT,
+    });
+    expect(v.project).toBe("Home");
+    expect(v.project_f).toBe("Project: Home\n");
   });
 
   test("trims {content} but wraps {content_f} verbatim in a four-backtick fence", () => {
@@ -59,6 +79,7 @@ describe("buildTemplateVars", () => {
       url: "",
       title: "",
       app: "",
+      project: "",
       now: NOW,
       dateFormat: FMT,
     });
@@ -72,6 +93,7 @@ describe("buildTemplateVars", () => {
       url: "",
       title: "",
       app: "",
+      project: "",
       now: NOW,
       dateFormat: FMT,
     });
@@ -85,6 +107,7 @@ describe("buildTemplateVars", () => {
       url: "https://example.com",
       title: "",
       app: "",
+      project: "",
       now: NOW,
       dateFormat: FMT,
     });
@@ -98,6 +121,7 @@ describe("buildTemplateVars", () => {
       url: "",
       title: "Some title",
       app: "",
+      project: "",
       now: NOW,
       dateFormat: FMT,
     });
