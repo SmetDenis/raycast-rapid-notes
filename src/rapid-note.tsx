@@ -3,7 +3,6 @@ import {
   ActionPanel,
   Clipboard,
   Form,
-  LaunchProps,
   Toast,
   closeMainWindow,
   getPreferenceValues,
@@ -12,7 +11,6 @@ import {
 } from "@raycast/api";
 import { join } from "node:path";
 import { useEffect, useState } from "react";
-import { mergeCapturedContent, separatorGlyph } from "./lib/content";
 import { formatDate } from "./lib/datetime";
 import { uniqueFilename } from "./lib/filename";
 import { upsertUpdatedField } from "./lib/frontmatter";
@@ -28,57 +26,45 @@ import {
   writeFile,
 } from "./shared";
 
-type Target = "checklist" | "append" | "task" | "note";
-
-function isCreate(target: Target): boolean {
-  return target === "task" || target === "note";
-}
+type Mode = "append" | "create";
 
 interface Values {
-  target: Target;
+  mode: Mode;
   content: string;
-  url: string;
+  title: string;
+  tags: string;
   project: string;
-  title?: string;
-  tags?: string;
+  url: string;
 }
 
 /**
- * Editable-capture form. A target dropdown picks one of the four operations; the fields adapt
- * (append → content/project/url, create → also title/tags). All construction is delegated to
- * ./lib (applyAppend / buildCreateFile), so this adapter only gathers input and dispatches.
+ * Standalone editable-capture form with its OWN preferences (independent of the four instant
+ * commands). A mode toggle chooses Append (write under a heading in the configured file) or
+ * Create (write a new frontmatter file in the configured directory). Fields are prefilled from
+ * the selection/clipboard and the frontmost app/browser. All construction is delegated to ./lib.
  */
-export default function RapidNoteCommand(
-  props: LaunchProps<{ arguments: Arguments.RapidNote }>,
-) {
+export default function RapidNoteCommand() {
   const prefs = getPreferenceValues<Preferences.RapidNote>();
-  const [target, setTarget] = useState<Target>("checklist");
+  const [mode, setMode] = useState<Mode>("append");
   const [content, setContent] = useState("");
   const [url, setUrl] = useState("");
   const [tabTitle, setTabTitle] = useState("");
   const [app, setApp] = useState("");
   const [title, setTitle] = useState("");
   const [tags, setTags] = useState(prefs.defaultTags ?? "");
-  const [project, setProject] = useState(props.arguments.project ?? "");
+  const [project, setProject] = useState("");
   const [fromClipboard, setFromClipboard] = useState(false);
 
   useEffect(() => {
     void (async () => {
       const selection = await readSelectionOrClipboard(prefs.clipboardFallback);
-      setContent(
-        mergeCapturedContent(
-          props.arguments.text,
-          selection.text,
-          separatorGlyph(prefs.mergeSeparator),
-        ),
-      );
+      setContent(selection.text);
       setFromClipboard(selection.fromClipboard);
       const source = await readSource();
       setUrl(source.url);
       setTabTitle(source.title);
       setApp(source.app);
-      // Prefill the Title field with the browser page title (web-clipper style) without
-      // clobbering anything the user already typed while this resolved.
+      // Prefill Title with the browser page title without clobbering anything already typed.
       if (source.title) setTitle((current) => current || source.title);
     })();
   }, []);
@@ -86,44 +72,37 @@ export default function RapidNoteCommand(
   async function handleSubmit(values: Values) {
     try {
       const now = new Date();
-      const create = isCreate(values.target);
+      const create = values.mode === "create";
+      const parsedTags = parseTags(values.tags ?? "");
       const vars = buildTemplateVars({
         content: values.content,
         url: values.url,
-        title: create ? (values.title ?? "") : tabTitle,
+        title: create ? (values.title ?? "") : values.title || tabTitle,
         app,
         project: values.project,
         now,
         dateFormat: prefs.dateFormat,
+        tags: parsedTags,
       });
 
       if (create) {
-        const directory =
-          (values.target === "task"
-            ? prefs.taskDirectory
-            : prefs.noteDirectory) ?? "";
+        const directory = prefs.createDirectory ?? "";
         if (!directory.trim()) {
           await showToast({
             style: Toast.Style.Failure,
-            title: `Set the ${values.target} directory in preferences`,
+            title: "Set the create directory in preferences",
           });
           return;
         }
         const file = buildCreateFile({
-          frontmatterPref:
-            values.target === "task"
-              ? prefs.taskFrontmatter
-              : prefs.noteFrontmatter,
+          frontmatterPref: prefs.createFrontmatter,
           created: formatDate(now, prefs.dateFormat),
           title: values.title ?? "",
           project: values.project,
           dateFallback: `${vars.date} ${vars.time}`,
-          tags: parseTags(values.tags ?? ""),
+          tags: parsedTags,
           sourceUrl: values.url.trim(),
-          body: renderTemplate(
-            values.target === "task" ? prefs.taskTemplate : prefs.noteTemplate,
-            vars,
-          ),
+          body: renderTemplate(prefs.createTemplate, vars),
         });
         const filename = uniqueFilename(
           formatDate(now, prefs.filenameDateFormat),
@@ -136,32 +115,21 @@ export default function RapidNoteCommand(
           message: filename,
         });
       } else {
-        const file =
-          (values.target === "checklist"
-            ? prefs.checklistFile
-            : prefs.appendNoteFile) ?? "";
-        if (!file.trim()) {
+        const target = prefs.appendFile ?? "";
+        if (!target.trim()) {
           await showToast({
             style: Toast.Style.Failure,
-            title: `Set the ${values.target} file in preferences`,
+            title: "Set the append file in preferences",
           });
           return;
         }
-        const heading =
-          values.target === "checklist"
-            ? prefs.checklistHeading
-            : prefs.appendNoteHeading;
-        const template =
-          values.target === "checklist"
-            ? prefs.checklistTemplate
-            : prefs.appendNoteTemplate;
         const appended = applyAppend(
-          readFile(file),
-          heading,
-          renderTemplate(template, vars),
+          readFile(target),
+          prefs.appendHeading,
+          renderTemplate(prefs.appendTemplate, vars),
         );
         writeFile(
-          file,
+          target,
           upsertUpdatedField(appended, formatDate(now, prefs.dateFormat)),
         );
         await showToast({ style: Toast.Style.Success, title: "Appended" });
@@ -185,8 +153,6 @@ export default function RapidNoteCommand(
     }
   }
 
-  const create = isCreate(target);
-
   return (
     <Form
       actions={
@@ -197,15 +163,13 @@ export default function RapidNoteCommand(
       }
     >
       <Form.Dropdown
-        id="target"
-        title="Target"
-        value={target}
-        onChange={(v) => setTarget(v as Target)}
+        id="mode"
+        title="Mode"
+        value={mode}
+        onChange={(v) => setMode(v as Mode)}
       >
-        <Form.Dropdown.Item value="checklist" title="Append Checklist" />
-        <Form.Dropdown.Item value="append" title="Append Note" />
-        <Form.Dropdown.Item value="task" title="New Task" />
-        <Form.Dropdown.Item value="note" title="New Note" />
+        <Form.Dropdown.Item value="append" title="Append" />
+        <Form.Dropdown.Item value="create" title="Create File" />
       </Form.Dropdown>
       {fromClipboard && (
         <Form.Description text="Text was taken from the clipboard — nothing was selected." />
@@ -220,23 +184,19 @@ export default function RapidNoteCommand(
         }}
         autoFocus
       />
-      {create && (
-        <Form.TextField
-          id="title"
-          title="Title"
-          value={title}
-          onChange={setTitle}
-        />
-      )}
-      {create && (
-        <Form.TextField
-          id="tags"
-          title="Tags"
-          placeholder="comma, separated"
-          value={tags}
-          onChange={setTags}
-        />
-      )}
+      <Form.TextField
+        id="title"
+        title="Title"
+        value={title}
+        onChange={setTitle}
+      />
+      <Form.TextField
+        id="tags"
+        title="Tags"
+        placeholder="comma, separated"
+        value={tags}
+        onChange={setTags}
+      />
       <Form.TextField
         id="project"
         title="Project"

@@ -19,12 +19,17 @@ import {
 // Adapter helpers shared by the no-view (instant) commands. Not unit-tested (they import
 // @raycast/api); all real logic lives in ./lib. Verify behaviour via `make dev`.
 
-export interface SharedPrefs {
+/** Prefs the instant APPEND path needs. No defaultTags (append has no tag source) and no filenameDateFormat. */
+export interface AppendPrefs {
   dateFormat: string;
-  filenameDateFormat: string;
-  defaultTags: string;
   clipboardFallback: boolean;
   mergeSeparator: string;
+}
+
+/** Prefs the instant CREATE path needs: adds the filename format and the tag source. */
+export interface CreatePrefs extends AppendPrefs {
+  filenameDateFormat: string;
+  defaultTags: string;
 }
 
 export interface CommandArgs {
@@ -41,7 +46,7 @@ export interface CommandArgs {
 export async function runSilentAppend(
   args: CommandArgs,
   config: { file: string; heading: string; template: string },
-  prefs: SharedPrefs,
+  prefs: AppendPrefs,
   label: string,
 ): Promise<void> {
   if (!config.file.trim()) {
@@ -100,7 +105,7 @@ export async function runSilentAppend(
 export async function runSilentCreate(
   args: CommandArgs,
   config: { directory: string; template: string; frontmatter: string },
-  prefs: SharedPrefs,
+  prefs: CreatePrefs,
   label: string,
 ): Promise<void> {
   if (!config.directory.trim()) {
@@ -122,6 +127,7 @@ export async function runSilentCreate(
   try {
     const now = new Date();
     const source = await readSource();
+    const tags = parseTags(prefs.defaultTags ?? "");
     const vars = buildTemplateVars({
       content,
       url: source.url,
@@ -130,6 +136,7 @@ export async function runSilentCreate(
       project,
       now,
       dateFormat: prefs.dateFormat,
+      tags,
     });
     const file = buildCreateFile({
       frontmatterPref: config.frontmatter,
@@ -137,7 +144,7 @@ export async function runSilentCreate(
       title,
       project,
       dateFallback: `${vars.date} ${vars.time}`,
-      tags: parseTags(prefs.defaultTags ?? ""),
+      tags,
       sourceUrl: source.url,
       body: renderTemplate(config.template, vars),
     });

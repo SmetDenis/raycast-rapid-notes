@@ -15,6 +15,7 @@ describe("buildTemplateVars", () => {
         project: "Work",
         now: NOW,
         dateFormat: FMT,
+        tags: ["work", "urgent"],
       }),
     ).toEqual({
       // Raw values — trimmed, no label.
@@ -24,6 +25,8 @@ describe("buildTemplateVars", () => {
       title: "Some title",
       project: "Work",
       page: "[Some title](https://example.com)",
+      tags: "work, urgent",
+      tags_f: "Tags: work, urgent\n",
       // Formatted variants — label/decoration + trailing newline.
       content_f: "````text\n  Selected text  \n````\n",
       app_f: "From app: Telegram\n",
@@ -127,5 +130,34 @@ describe("buildTemplateVars", () => {
     });
     expect(v.page).toBe("Some title");
     expect(v.page_f).toBe("Page: Some title\n");
+  });
+
+  test("joins tags for {tags} and labels them for {tags_f}", () => {
+    const v = buildTemplateVars({
+      content: "x",
+      url: "",
+      title: "",
+      app: "",
+      project: "",
+      now: NOW,
+      dateFormat: FMT,
+      tags: ["work", "urgent"],
+    });
+    expect(v.tags).toBe("work, urgent");
+    expect(v.tags_f).toBe("Tags: work, urgent\n");
+  });
+
+  test("collapses missing/empty tags to '' for both {tags} and {tags_f}", () => {
+    const v = buildTemplateVars({
+      content: "x",
+      url: "",
+      title: "",
+      app: "",
+      project: "",
+      now: NOW,
+      dateFormat: FMT,
+    });
+    expect(v.tags).toBe("");
+    expect(v.tags_f).toBe("");
   });
 });

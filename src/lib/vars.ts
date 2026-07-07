@@ -10,6 +10,8 @@ export interface VarsInput {
   project: string;
   now: Date;
   dateFormat: string;
+  /** Already-parsed, cleaned tag list (via lib/tags.parseTags); optional — "" when absent. */
+  tags?: string[];
 }
 
 /**
@@ -27,6 +29,7 @@ export function buildTemplateVars({
   project,
   now,
   dateFormat,
+  tags = [],
 }: VarsInput): TemplateVars {
   const contentT = content.trim();
   const urlT = url.trim();
@@ -50,6 +53,8 @@ export function buildTemplateVars({
     title: titleT,
     project: projectT,
     page,
+    tags: tags.join(", "),
+    tags_f: tags.length ? `Tags: ${tags.join(", ")}\n` : "",
     // {content_f} wraps the RAW (untrimmed) content in a four-backtick fence so pasted
     // triple-backtick blocks can't break out; empty (whitespace-only) content collapses to "".
     content_f: contentT ? `\`\`\`\`text\n${content}\n\`\`\`\`\n` : "",

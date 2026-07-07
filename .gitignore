@@ -4,3 +4,4 @@ raycast-env.d.ts
 coverage/
 *.log
 .DS_Store
+tmp

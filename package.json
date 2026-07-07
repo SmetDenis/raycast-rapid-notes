@@ -19,6 +19,11 @@
       "title": "Append Checklist",
       "description": "Instantly append the selected or typed text as a checklist item under a heading in your Markdown file.",
       "mode": "no-view",
+      "preferences": [
+        { "name": "checklistFile", "title": "File", "description": "Markdown file this command writes to.", "type": "file", "required": false },
+        { "name": "checklistHeading", "title": "Heading", "description": "Append under this heading (case-insensitive). Leading #s set the level, e.g. '## Tasks'; plain text is H1; leave empty to append to the end of the file.", "type": "textfield", "required": false, "default": "" },
+        { "name": "checklistTemplate", "title": "Template", "description": "Template per appended item. Placeholders: {content} {url} {title} {app} {project} {page} {tags} {date} {time} {datetime}; formatted (label + newline): {content_f} {url_f} {title_f} {app_f} {project_f} {page_f} {tags_f}.", "type": "textfield", "required": false, "default": "- [ ] **{date} {time}**: {content}" }
+      ],
       "arguments": [
         {
           "name": "text",
@@ -39,6 +44,11 @@
       "title": "Append Note",
       "description": "Instantly append the selected or typed text as a block under a heading in your notes file.",
       "mode": "no-view",
+      "preferences": [
+        { "name": "appendNoteFile", "title": "File", "description": "Markdown file this command writes to.", "type": "file", "required": false },
+        { "name": "appendNoteHeading", "title": "Heading", "description": "Append under this heading (case-insensitive). Leading #s set the level; plain text is H1; leave empty to append to the end of the file.", "type": "textfield", "required": false, "default": "" },
+        { "name": "appendNoteTemplate", "title": "Template", "description": "Template per appended block. Same placeholders as the checklist template (incl. {tags}/{tags_f}).", "type": "textfield", "required": false, "default": "{content}\\n\\n_{date} {time} · {app}_" }
+      ],
       "arguments": [
         {
           "name": "text",
@@ -59,6 +69,12 @@
       "title": "New Task",
       "description": "Instantly create a new task file with YAML frontmatter in your task directory.",
       "mode": "no-view",
+      "preferences": [
+        { "name": "taskDirectory", "title": "Directory", "description": "Folder where new task files are created.", "type": "directory", "required": false },
+        { "name": "taskTemplate", "title": "Body Template", "description": "Template for the task body; YAML frontmatter is added automatically. Same placeholders as the append templates (incl. {tags}/{tags_f}).", "type": "textfield", "required": false, "default": "{content}" },
+        { "name": "taskFrontmatter", "title": "Frontmatter", "description": "Extra YAML frontmatter as 'key: value; key2: value2'. Reserved keys (created, title, project, tags, source_url, updated) are set automatically and rejected here.", "type": "textfield", "required": false, "default": "type: task; task_status: active" },
+        { "name": "defaultTags", "title": "Default Tags", "description": "Comma-separated tags written to new task files (and available as {tags}).", "type": "textfield", "required": false, "default": "" }
+      ],
       "arguments": [
         {
           "name": "text",
@@ -85,6 +101,12 @@
       "title": "New Note",
       "description": "Instantly create a new note file with YAML frontmatter in your note directory.",
       "mode": "no-view",
+      "preferences": [
+        { "name": "noteDirectory", "title": "Directory", "description": "Folder where new note files are created.", "type": "directory", "required": false },
+        { "name": "noteTemplate", "title": "Body Template", "description": "Template for the note body; YAML frontmatter is added automatically. Same placeholders as the append templates (incl. {tags}/{tags_f}).", "type": "textfield", "required": false, "default": "{content}\\n\\n{page_f}" },
+        { "name": "noteFrontmatter", "title": "Frontmatter", "description": "Extra YAML frontmatter as 'key: value; key2: value2'. Reserved keys (created, title, project, tags, source_url, updated) are set automatically and rejected here.", "type": "textfield", "required": false, "default": "type: note" },
+        { "name": "defaultTags", "title": "Default Tags", "description": "Comma-separated tags written to new note files (and available as {tags}).", "type": "textfield", "required": false, "default": "" }
+      ],
       "arguments": [
         {
           "name": "text",
@@ -109,117 +131,20 @@
     {
       "name": "rapid-note",
       "title": "Rapid Note",
-      "description": "Capture with an editable form: append a checklist item or note, or create a new task or note.",
+      "description": "Capture with an editable form: append under a heading, or create a new task/note file — your choice, edited before saving.",
       "mode": "view",
-      "arguments": [
-        {
-          "name": "text",
-          "type": "text",
-          "placeholder": "Text",
-          "required": false
-        },
-        {
-          "name": "project",
-          "type": "text",
-          "placeholder": "Project",
-          "required": false
-        }
+      "preferences": [
+        { "name": "appendFile", "title": "Append: File", "description": "Markdown file the form appends to when 'Append' is selected.", "type": "file", "required": false },
+        { "name": "appendHeading", "title": "Append: Heading", "description": "Append under this heading (case-insensitive). Leading #s set the level; plain text is H1; empty appends to the end of the file.", "type": "textfield", "required": false, "default": "" },
+        { "name": "appendTemplate", "title": "Append: Template", "description": "Template for the appended block. Placeholders incl. {content} {page} {tags} {date} {time} and their {*_f} forms.", "type": "textfield", "required": false, "default": "{content}\\n\\n_{date} {time} · {app}_" },
+        { "name": "createDirectory", "title": "Create: Directory", "description": "Folder where the form creates a new file when 'Create' is selected.", "type": "directory", "required": false },
+        { "name": "createTemplate", "title": "Create: Body Template", "description": "Template for the created file body; YAML frontmatter is added automatically.", "type": "textfield", "required": false, "default": "{content}\\n\\n{page_f}" },
+        { "name": "createFrontmatter", "title": "Create: Frontmatter", "description": "Extra YAML frontmatter as 'key: value; key2: value2'. Reserved keys are set automatically and rejected here.", "type": "textfield", "required": false, "default": "type: note" },
+        { "name": "defaultTags", "title": "Default Tags", "description": "Comma-separated tags prefilled into the form's Tags field.", "type": "textfield", "required": false, "default": "" }
       ]
     }
   ],
   "preferences": [
-    {
-      "name": "checklistFile",
-      "title": "Checklist: File",
-      "description": "Markdown file the Append Checklist command writes to.",
-      "type": "file",
-      "required": false
-    },
-    {
-      "name": "checklistHeading",
-      "title": "Checklist: Heading",
-      "description": "Append under this heading (case-insensitive). Leading #s set the level, e.g. '## Tasks'; plain text is H1; leave empty to append to the end of the file.",
-      "type": "textfield",
-      "required": false,
-      "default": ""
-    },
-    {
-      "name": "checklistTemplate",
-      "title": "Checklist: Template",
-      "description": "Template per appended item. Placeholders: {content} {url} {title} {app} {project} {page} {date} {time} {datetime}; formatted (label + newline): {content_f} {url_f} {title_f} {app_f} {project_f} {page_f}.",
-      "type": "textfield",
-      "required": false,
-      "default": "- [ ] **{date} {time}**: {content}"
-    },
-    {
-      "name": "appendNoteFile",
-      "title": "Append Note: File",
-      "description": "Markdown file the Append Note command writes to.",
-      "type": "file",
-      "required": false
-    },
-    {
-      "name": "appendNoteHeading",
-      "title": "Append Note: Heading",
-      "description": "Append under this heading (case-insensitive). Leading #s set the level; plain text is H1; leave empty to append to the end of the file.",
-      "type": "textfield",
-      "required": false,
-      "default": ""
-    },
-    {
-      "name": "appendNoteTemplate",
-      "title": "Append Note: Template",
-      "description": "Template per appended block. Placeholders: {content} {url} {title} {app} {project} {page} {date} {time} {datetime}; formatted (label + newline): {content_f} {url_f} {title_f} {app_f} {project_f} {page_f}.",
-      "type": "textfield",
-      "required": false,
-      "default": "{content}\\n\\n_{date} {time} · {app}_"
-    },
-    {
-      "name": "taskDirectory",
-      "title": "New Task: Directory",
-      "description": "Folder where new task files are created.",
-      "type": "directory",
-      "required": false
-    },
-    {
-      "name": "taskTemplate",
-      "title": "New Task: Body Template",
-      "description": "Template for the task body; YAML frontmatter is added automatically. Same placeholders as the append templates.",
-      "type": "textfield",
-      "required": false,
-      "default": "{content}"
-    },
-    {
-      "name": "taskFrontmatter",
-      "title": "New Task: Frontmatter",
-      "description": "Extra YAML frontmatter as 'key: value; key2: value2'. Reserved keys (created, title, project, tags, source_url, updated) are set automatically and rejected here.",
-      "type": "textfield",
-      "required": false,
-      "default": "type: task; task_status: active"
-    },
-    {
-      "name": "noteDirectory",
-      "title": "New Note: Directory",
-      "description": "Folder where new note files are created.",
-      "type": "directory",
-      "required": false
-    },
-    {
-      "name": "noteTemplate",
-      "title": "New Note: Body Template",
-      "description": "Template for the note body; YAML frontmatter is added automatically. Same placeholders as the append templates.",
-      "type": "textfield",
-      "required": false,
-      "default": "{content}\\n\\n{page_f}"
-    },
-    {
-      "name": "noteFrontmatter",
-      "title": "New Note: Frontmatter",
-      "description": "Extra YAML frontmatter as 'key: value; key2: value2'. Reserved keys (created, title, project, tags, source_url, updated) are set automatically and rejected here.",
-      "type": "textfield",
-      "required": false,
-      "default": "type: note"
-    },
     {
       "name": "dateFormat",
       "title": "Date Format",
@@ -235,23 +160,6 @@
       "type": "textfield",
       "required": false,
       "default": "yyyy-MM-dd-HHmmss"
-    },
-    {
-      "name": "defaultTags",
-      "title": "Default Tags",
-      "description": "Comma-separated tags used by New Task / New Note (prefilled into the form).",
-      "type": "textfield",
-      "required": false,
-      "default": ""
-    },
-    {
-      "name": "clipboardFallback",
-      "title": "Clipboard Fallback",
-      "label": "Use the clipboard when no text is selected",
-      "description": "When on, commands fall back to the clipboard if nothing is selected — for apps like Telegram that don't expose their selection. Copy the text first, then run the command.",
-      "type": "checkbox",
-      "required": false,
-      "default": false
     },
     {
       "name": "mergeSeparator",
@@ -274,6 +182,15 @@
           "value": "newline"
         }
       ]
+    },
+    {
+      "name": "clipboardFallback",
+      "title": "Clipboard Fallback",
+      "label": "Use the clipboard when no text is selected",
+      "description": "When on, commands fall back to the clipboard if nothing is selected — for apps like Telegram. Copy the text first, then run the command.",
+      "type": "checkbox",
+      "required": false,
+      "default": false
     }
   ],
   "scripts": {

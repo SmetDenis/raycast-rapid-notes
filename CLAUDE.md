@@ -1,10 +1,9 @@
 # rapid-notes — Claude Code instructions
 
-Raycast extension (TypeScript/React) for fast note capture. Four capture operations, each an
-instant (`no-view`) command plus one shared editable Form (`rapid-note`): append a checklist item
-or a text block under a heading in a file, or create a new timestamped task/note file with YAML
-frontmatter. Template- and preference-driven. Local/personal for now; may be published to the
-Raycast Store later.
+Raycast extension (TypeScript/React) for fast note capture. Four instant (`no-view`) commands —
+append a checklist item or text block under a heading, or create a new timestamped task/note file
+with YAML frontmatter — plus a STANDALONE editable Form (`rapid-note`) with its own append/create
+targets. Template-driven. Local/personal for now; may be published to the Raycast Store later.
 
 ## Critical
 
@@ -41,8 +40,8 @@ publish flow depend on them; do not reimplement logic in the Makefile or the two
 - Command entry points (thin adapters). Four `no-view` (instant, hotkey-friendly) commands + one Form:
   - `src/append-checklist.ts`, `src/append-note.ts` — `no-view`, append under a heading in a file.
   - `src/new-task.ts`, `src/new-note.ts` — `no-view`, create a new frontmatter file in a directory.
-  - `src/rapid-note.tsx` — `view` Form; a target dropdown `{checklist|append|task|note}` adapts the
-    fields (append → content/project; create → also title/tags) and dispatches to `lib`.
+  - `src/rapid-note.tsx` — `view` Form, a STANDALONE command with its OWN prefs (not a dispatcher): a
+    mode dropdown `{append|create}` appends under a heading in `appendFile` or creates in `createDirectory`; no arguments.
   - `src/capture.ts` — non-command adapter helper (`@raycast/api`): `runSilentAppend`/`runSilentCreate`
     shared by the four `no-view` commands. Not in `lib`, not unit-tested — verify via `make dev`.
 - `src/lib/` — pure core, no `@raycast/api`: template/placeholder rendering, date + timestamp-filename
@@ -55,8 +54,8 @@ publish flow depend on them; do not reimplement logic in the Makefile or the two
 - `assets/` — command icons (512×512 PNG + `@dark` variant), rasterized from the editable
   `icon.svg`/`icon@dark.svg` sources via `rsvg-convert -w 512 -h 512 icon.svg -o icon.png`. Edit the
   SVG and re-render; do not hand-edit the PNG.
-- The manifest is `package.json` (Raycast superset): it defines commands, their `mode`, and
-  extension-level `preferences`, and is the source of truth for command names and preference keys.
+- The manifest is `package.json` (Raycast superset): it defines commands, their `mode`, and both
+  command-scope and extension-scope `preferences`, and is the source of truth for command/preference keys.
   Required fields (needed for `ray build`/`ray lint`, not just Store): `name`, `title`,
   `description`, `icon`, `author`, `platforms`, `categories`, `commands`; `license` MIT
   recommended. Preference types include `file` and `directory` — use them for the append target
@@ -65,20 +64,23 @@ publish flow depend on them; do not reimplement logic in the Makefile or the two
   Target `file`/`directory` prefs are non-required with NO default (→ generated type
   `string | undefined`) and runtime-guarded, so the user configures only the targets they use.
 
-## Preferences (extension-level, namespaced per target)
+## Preferences (per-target = command-scope; a few invariants = extension-scope)
 
-- All prefs are extension-level so a target's `no-view` command and the Form read identical config.
-  NO global template — each target owns its file/dir + template (+ heading for append, frontmatter
-  for create). Keys: `checklist{File,Heading,Template}`, `appendNote{File,Heading,Template}`,
-  `task{Directory,Template,Frontmatter}`, `note{Directory,Template,Frontmatter}`; shared
-  `dateFormat`, `filenameDateFormat`, `defaultTags`, `clipboardFallback`, `mergeSeparator`.
+- Per-target prefs are COMMAND-scope (each on that command's OWN settings screen; a command reads only
+  its own command-scope prefs + inherited extension-scope, never another command's — the Form and the
+  instant commands do NOT share config). NO global template — each target owns its file/dir + template
+  (+ heading for append, frontmatter for create): `checklist*`/`appendNote*` (append commands),
+  `task*`/`note*` + `defaultTags` (create commands), and the Form's `append{File,Heading,Template}` +
+  `create{Directory,Template,Frontmatter}` + `defaultTags` (own duplicated paths, by design; exact keys
+  in `package.json`). Only `dateFormat`, `filenameDateFormat`, `mergeSeparator`, `clipboardFallback` stay
+  extension-scope. `defaultTags` is the same key in 3 scopes (task, note, form) — namespaced per command.
 - Template placeholders (all built in `lib/vars.buildTemplateVars`): each captured field has a RAW
   form (trimmed, no label, `""` when empty) and a FORMATTED form (a labeled line ending in `\n`,
   `""` when empty — so it vanishes cleanly; the baked-in `\n` means it can't sit inline).
-  Raw: `{content}` `{url}` `{title}` `{app}` `{project}` `{page}`; formatted: `{content_f}` `{url_f}`
-  `{title_f}` `{app_f}` `{project_f}` `{page_f}`; plus `{date}` (`EEE, d MMMM yyyy`) `{time}` (`HH:mm`)
+  Raw: `{content}` `{url}` `{title}` `{app}` `{project}` `{page}` `{tags}` (`"a, b"`); formatted:
+  `{content_f}` `{url_f}` `{title_f}` `{app_f}` `{project_f}` `{page_f}` `{tags_f}` (`Tags: a, b\n`); plus `{date}` (`EEE, d MMMM yyyy`) `{time}` (`HH:mm`)
   `{datetime}` (the `dateFormat` pref). Labels: `From app: …` / `Url: <…>` / `Title: …` /
-  `Project: …` / `Page: …`. `{app}` is the
+  `Project: …` / `Page: …` / `Tags: …`. `{app}` is the
   frontmost source-app name (ANY app, not just browsers). `{page}` is an adaptive Markdown link:
   `[title](url)`, else `<url>`, else the title, else `""`. `{content_f}` wraps the content VERBATIM
   in a four-backtick `text` code fence so pasted triple-backtick blocks can't break out.
@@ -110,13 +112,14 @@ publish flow depend on them; do not reimplement logic in the Makefile or the two
 - `dateFormat` (default `yyyy-MM-dd'T'HH:mm:ss`) → `created` + `{datetime}`; `filenameDateFormat`
   (default `yyyy-MM-dd-HHmmss`) → create filenames. Raycast prefs have no textarea — comma/semicolon
   lists live in single-line `textfield`s.
-- Default tags: a comma-separated `textfield`. Create uses it — the Form prefills its tags field
-  (prefill/replace, not merge); the Silent create commands read it directly.
-- Arguments (optional single-line, via `LaunchProps`): `text` merges with the capture into one
-  `{content}` via `lib/content.mergeCapturedContent` (argument-first, separator only when BOTH
-  present, capture verbatim, nullish → empty); `mergeSeparator` → `separatorGlyph`: `semicolon`
-  (default `"; "`) / `space` / `newline`. `project` (all commands) feeds `{project}`; create commands
-  also take a `title` argument (3-arg Raycast limit). `text` always feeds `{content}`, never the title.
+- Default tags: a comma-separated `textfield` (task/note/form scopes). Create uses it — the Form
+  prefills its Tags field (replace, not merge), the Silent create commands read it directly — feeding
+  both the `tags:` frontmatter and `{tags}`/`{tags_f}`. Silent APPEND has no tag source → `{tags}` empty.
+- Arguments (optional single-line, via `LaunchProps`; the four instant commands ONLY — the Form takes
+  NONE): `text` merges with the capture into one `{content}` via `lib/content.mergeCapturedContent`
+  (argument-first, separator only when BOTH present, capture verbatim, nullish → empty); `mergeSeparator`
+  → `separatorGlyph`: `semicolon` (default `"; "`) / `space` / `newline`. `project` (all four) feeds
+  `{project}`; the create commands also take a `title` argument (3-arg limit). `text` always feeds `{content}`.
 
 ## Gotchas
 
