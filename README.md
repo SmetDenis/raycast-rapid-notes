@@ -14,26 +14,21 @@ Both **Append Rapid Item: Template** and **New Rapid Note: Body Template** accep
 
 ### Placeholders
 
-| Raw          | Value                                                       | Example (from a browser)                |
-|--------------|-------------------------------------------------------------|-----------------------------------------|
-| `{content}`  | Captured or typed text, trimmed                             | `Fix the login redirect`                |
-| `{url}`      | Active browser-tab URL                                      | `https://example.com/a`                 |
-| `{title}`    | Active browser-tab title                                    | `Example Page`                          |
-| `{app}`      | Frontmost app name (any app, always available)              | `Google Chrome`                         |
-| `{page}`     | Adaptive link: `[title](url)`, else `<url>`, else the title | `[Example Page](https://example.com/a)` |
-| `{date}`     | `EEE, d MMMM yyyy`                                          | `Sun, 5 July 2026`                      |
-| `{time}`     | `HH:mm`                                                     | `23:36`                                 |
-| `{datetime}` | Your **Date Format** preference                             | `2026-07-05T23:36:00`                   |
-
-Each captured field also has a **formatted** `_f` twin. A twin renders a labeled line that ends in a newline and **collapses to nothing when its value is empty**, so optional metadata never leaves a blank line behind:
-
-| Formatted     | Renders as                             | Example                                        |
-|---------------|----------------------------------------|------------------------------------------------|
-| `{content_f}` | Capture wrapped in a `text` code fence | four backticks, so pasted code can't break out |
-| `{url_f}`     | `Url: <…>`                             | `Url: <https://example.com/a>`                 |
-| `{title_f}`   | `Title: …`                             | `Title: Example Page`                          |
-| `{app_f}`     | `From app: …`                          | `From app: Google Chrome`                      |
-| `{page_f}`    | `Page: …`                              | `Page: [Example Page](https://example.com/a)`  |
+| Raw           | Value                                                       | Example (from a browser)                       |
+|---------------|-------------------------------------------------------------|------------------------------------------------|
+| `{content}`   | Captured or typed text, trimmed                             | `Fix the login redirect`                       |
+| `{content_f}` | Capture wrapped in a `text` code fence                      | four backticks, so pasted code can't break out |
+| `{url}`       | Active browser-tab URL                                      | `https://example.com/a`                        |
+| `{url_f}`     | `Url: <…>`                                                  | `Url: <https://example.com/a>`                 |
+| `{title}`     | Active browser-tab title                                    | `Example Page`                                 |
+| `{title_f}`   | `Title: …`                                                  | `Title: Example Page`                          |
+| `{app}`       | Frontmost app name (any app, always available)              | `Google Chrome`                                |
+| `{app_f}`     | `From app: …`                                               | `From app: Google Chrome`                      |
+| `{page}`      | Adaptive link: `[title](url)`, else `<url>`, else the title | `[Example Page](https://example.com/a)`        |
+| `{page_f}`    | `Page: …`                                                   | `Page: [Example Page](https://example.com/a)`  |
+| `{date}`      | `EEE, d MMMM yyyy`                                          | `Sun, 5 July 2026`                             |
+| `{time}`      | `HH:mm`                                                     | `23:36`                                        |
+| `{datetime}`  | Your **Date Format** preference                             | `2026-07-05T23:36:00`                          |
 
 That is the complete set of variables - five raw (`{content}` `{url}` `{title}` `{app}` `{page}`), five formatted twins (`{content_f}` `{url_f}` `{title_f}` `{app_f}` `{page_f}`), and three date/time
 (`{date}` `{time}` `{datetime}`).
