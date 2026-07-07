@@ -1,4 +1,5 @@
 import { describe, expect, test } from "vitest";
+import { parseTags } from "./tags";
 import { buildTemplateVars } from "./vars";
 
 const NOW = new Date(2026, 6, 5, 14, 32, 9); // Sunday 2026-07-05 14:32:09
@@ -290,6 +291,21 @@ describe("buildTemplateVars", () => {
       now: NOW,
       dateFormat: FMT,
       tags: ["work", "urgent"],
+    });
+    expect(v.tags).toBe("work, urgent");
+    expect(v.tags_f).toBe("Tags: #work, #urgent\n");
+  });
+
+  test("re-adds # in {tags_f} after parseTags strips a leading # (no ##)", () => {
+    const v = buildTemplateVars({
+      content: "x",
+      url: "",
+      title: "",
+      app: "",
+      project: "",
+      now: NOW,
+      dateFormat: FMT,
+      tags: parseTags("#work, urgent"),
     });
     expect(v.tags).toBe("work, urgent");
     expect(v.tags_f).toBe("Tags: #work, #urgent\n");

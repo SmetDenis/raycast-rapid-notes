@@ -19,25 +19,24 @@ Every command's template preference accepts the same placeholders. The preferenc
 ### Placeholders
 
 The capture trio (`content`, `selected`, `clipboard`) each has a raw form, a formatted `_f` twin
-(a labeled line that self-collapses when empty - except `content_f`, a four-backtick code fence),
-and a `_oneline` twin (whitespace collapsed to single spaces).
+(a labeled line that self-collapses when empty - except `content_f`, a four-backtick code fence), and a `_oneline` twin (whitespace collapsed to single spaces).
 
-| Placeholder                                             | Value                                                                                                                   |
-|---------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------|
-| `{content}`                                             | Primary text. Instant commands: `extra` + selection + clipboard joined by the Merge Separator. Form: the Content field. |
-| `{content_f}`                                           | `{content}` wrapped VERBATIM in a four-backtick `text` code fence (pasted code can't break out)                         |
-| `{content_oneline}`                                     | `{content}` with newlines/whitespace collapsed to single spaces                                                         |
-| `{selected}` / `{selected_f}` / `{selected_oneline}`    | Raw selection · `Selected: …` · one-line                                                                                |
-| `{clipboard}` / `{clipboard_f}` / `{clipboard_oneline}` | Clipboard (needs **Merge the clipboard** on) · `Clipboard: …` · one-line                                                |
-| `{extra}` / `{extra_f}`                                 | The typed text argument · `Extra: …`                                                                                    |
-| `{project}` / `{project_f}`                             | Project (argument or the Form's Project field) · `Project: …`                                                           |
-| `{url}` / `{url_f}`                                     | Active browser-tab URL · `Url: <…>`                                                                                     |
-| `{title}` / `{title_f}`                                 | Active browser-tab title · `Title: …`                                                                                   |
-| `{app}` / `{app_f}`                                     | Frontmost app name · `From app: …`                                                                                      |
-| `{page}` / `{page_f}`                                   | Adaptive link `[title](url)` / `<url>` / title · `Page: …`                                                              |
-| `{link}` / `{link_f}`                                   | Fixed-anchor link `[link](url)` (inline) · same on its own line                                                         |
-| `{tags}` / `{tags_f}`                                   | `tag1, tag2` (bare, for YAML) · `Tags: #tag1, #tag2`                                                                    |
-| `{date}` / `{time}` / `{datetime}`                      | `EEE, d MMMM yyyy` · `HH:mm` · your **Date Format** preference                                                          |
+| Placeholder                                                       | Value                                                                                                                   |
+|-------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------|
+| `{content}`                                                       | Primary text. Instant commands: `extra` + selection + clipboard joined by the Merge Separator. Form: the Content field. |
+| `{content_f}`                                                     | `{content}` wrapped VERBATIM in a four-backtick `text` code fence (pasted code can't break out)                         |
+| `{content_oneline}` **(new)**                                     | `{content}` with newlines/whitespace collapsed to single spaces                                                         |
+| `{selected}` / `{selected_f}` / `{selected_oneline}` **(new)**    | Raw selection · `Selected: …` · one-line                                                                                |
+| `{clipboard}` / `{clipboard_f}` / `{clipboard_oneline}` **(new)** | Clipboard (needs **Merge the clipboard** on) · `Clipboard: …` · one-line                                                |
+| `{extra}` / `{extra_f}` **(new)**                                 | The typed text argument · `Extra: …`                                                                                    |
+| `{project}` / `{project_f}`                                       | Project (argument or the Form's Project field) · `Project: …`                                                           |
+| `{url}` / `{url_f}`                                               | Active browser-tab URL · `Url: <…>`                                                                                     |
+| `{title}` / `{title_f}`                                           | Active browser-tab title · `Title: …`                                                                                   |
+| `{app}` / `{app_f}`                                               | Frontmost app name · `From app: …`                                                                                      |
+| `{page}` / `{page_f}`                                             | Adaptive link `[title](url)` / `<url>` / title · `Page: …`                                                              |
+| `{link}` / `{link_f}` **(new)**                                   | Fixed-anchor link `[link](url)` (inline) · same on its own line                                                         |
+| `{tags}` / `{tags_f}` **(changed)**                               | `tag1, tag2` (bare, for YAML) · `Tags: #tag1, #tag2`                                                                    |
+| `{date}` / `{time}` / `{datetime}`                                | `EEE, d MMMM yyyy` · `HH:mm` · your **Date Format** preference                                                          |
 
 Notes:
 
