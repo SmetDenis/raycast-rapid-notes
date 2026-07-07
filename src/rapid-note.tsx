@@ -2,6 +2,7 @@ import {
   Action,
   ActionPanel,
   Form,
+  type LaunchProps,
   Toast,
   closeMainWindow,
   getPreferenceValues,
@@ -46,19 +47,27 @@ interface Values {
  * clipboard — both editable. `{content}` is the Content field verbatim (WYSIWYG); the 3-way
  * auto-merge is an instant-command affordance. All construction is delegated to ./lib.
  */
-export default function RapidNoteCommand() {
+export default function RapidNoteCommand(
+  props: LaunchProps<{ draftValues: Values }>,
+) {
   const prefs = getPreferenceValues<Preferences.RapidNote>();
-  const [mode, setMode] = useState<Mode>("append");
-  const [content, setContent] = useState("");
-  const [clipboard, setClipboard] = useState("");
-  const [url, setUrl] = useState("");
+  const draft = props.draftValues;
+  // A draft exists only after the form was closed WITHOUT submitting (submit drops it), so it is
+  // by definition unfinished work: restore it verbatim and skip the fresh capture below so the
+  // async effect can't clobber it with a new (possibly empty) selection.
+  const hasDraft = draft !== undefined;
+  const [mode, setMode] = useState<Mode>(draft?.mode ?? "append");
+  const [content, setContent] = useState(draft?.content ?? "");
+  const [clipboard, setClipboard] = useState(draft?.clipboard ?? "");
+  const [url, setUrl] = useState(draft?.url ?? "");
   const [tabTitle, setTabTitle] = useState("");
   const [app, setApp] = useState("");
-  const [title, setTitle] = useState("");
-  const [tags, setTags] = useState(prefs.defaultTags ?? "");
-  const [project, setProject] = useState("");
+  const [title, setTitle] = useState(draft?.title ?? "");
+  const [tags, setTags] = useState(draft?.tags ?? prefs.defaultTags ?? "");
+  const [project, setProject] = useState(draft?.project ?? "");
 
   useEffect(() => {
+    if (hasDraft) return;
     void (async () => {
       setContent(await readSelection());
       if (prefs.useClipboard) setClipboard(await readClipboardText());
@@ -152,6 +161,7 @@ export default function RapidNoteCommand() {
 
   return (
     <Form
+      enableDrafts
       actions={
         <ActionPanel>
           <Action.SubmitForm title="Save" onSubmit={handleSubmit} />
