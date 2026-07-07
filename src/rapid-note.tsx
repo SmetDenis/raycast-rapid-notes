@@ -1,7 +1,6 @@
 import {
   Action,
   ActionPanel,
-  Clipboard,
   Form,
   Toast,
   closeMainWindow,
@@ -20,8 +19,9 @@ import { renderTemplate } from "./lib/template";
 import { buildTemplateVars } from "./lib/vars";
 import {
   fileExists,
+  readClipboardText,
   readFile,
-  readSelectionOrClipboard,
+  readSelection,
   readSource,
   writeFile,
 } from "./shared";
@@ -31,6 +31,7 @@ type Mode = "append" | "create";
 interface Values {
   mode: Mode;
   content: string;
+  clipboard: string;
   title: string;
   tags: string;
   project: string;
@@ -40,26 +41,27 @@ interface Values {
 /**
  * Standalone editable-capture form with its OWN preferences (independent of the four instant
  * commands). A mode toggle chooses Append (write under a heading in the configured file) or
- * Create (write a new frontmatter file in the configured directory). Fields are prefilled from
- * the selection/clipboard and the frontmost app/browser. All construction is delegated to ./lib.
+ * Create (write a new frontmatter file in the configured directory). The Content field is
+ * prefilled from the selection; the Clipboard field (when `useClipboard` is on) from the
+ * clipboard — both editable. `{content}` is the Content field verbatim (WYSIWYG); the 3-way
+ * auto-merge is an instant-command affordance. All construction is delegated to ./lib.
  */
 export default function RapidNoteCommand() {
   const prefs = getPreferenceValues<Preferences.RapidNote>();
   const [mode, setMode] = useState<Mode>("append");
   const [content, setContent] = useState("");
+  const [clipboard, setClipboard] = useState("");
   const [url, setUrl] = useState("");
   const [tabTitle, setTabTitle] = useState("");
   const [app, setApp] = useState("");
   const [title, setTitle] = useState("");
   const [tags, setTags] = useState(prefs.defaultTags ?? "");
   const [project, setProject] = useState("");
-  const [fromClipboard, setFromClipboard] = useState(false);
 
   useEffect(() => {
     void (async () => {
-      const selection = await readSelectionOrClipboard(prefs.clipboardFallback);
-      setContent(selection.text);
-      setFromClipboard(selection.fromClipboard);
+      setContent(await readSelection());
+      if (prefs.useClipboard) setClipboard(await readClipboardText());
       const source = await readSource();
       setUrl(source.url);
       setTabTitle(source.title);
@@ -76,6 +78,9 @@ export default function RapidNoteCommand() {
       const parsedTags = parseTags(values.tags ?? "");
       const vars = buildTemplateVars({
         content: values.content,
+        extra: "",
+        selected: values.content,
+        clipboard: values.clipboard,
         url: values.url,
         title: create ? (values.title ?? "") : values.title || tabTitle,
         app,
@@ -145,20 +150,11 @@ export default function RapidNoteCommand() {
     }
   }
 
-  async function pasteClipboard() {
-    const clip = (await Clipboard.readText()) ?? "";
-    if (clip) {
-      setContent((current) => (current ? `${current}\n${clip}` : clip));
-      if (fromClipboard) setFromClipboard(false);
-    }
-  }
-
   return (
     <Form
       actions={
         <ActionPanel>
           <Action.SubmitForm title="Save" onSubmit={handleSubmit} />
-          <Action title="Paste Clipboard" onAction={pasteClipboard} />
         </ActionPanel>
       }
     >
@@ -171,18 +167,18 @@ export default function RapidNoteCommand() {
         <Form.Dropdown.Item value="append" title="Append" />
         <Form.Dropdown.Item value="create" title="Create File" />
       </Form.Dropdown>
-      {fromClipboard && (
-        <Form.Description text="Text was taken from the clipboard — nothing was selected." />
-      )}
       <Form.TextArea
         id="content"
         title="Content"
         value={content}
-        onChange={(value) => {
-          setContent(value);
-          if (fromClipboard) setFromClipboard(false);
-        }}
+        onChange={setContent}
         autoFocus
+      />
+      <Form.TextArea
+        id="clipboard"
+        title="Clipboard"
+        value={clipboard}
+        onChange={setClipboard}
       />
       <Form.TextField
         id="title"

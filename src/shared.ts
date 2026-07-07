@@ -19,30 +19,9 @@ export async function readSelection(): Promise<string> {
   }
 }
 
-export interface SelectionResult {
-  text: string;
-  /** True only when the text actually came from the clipboard fallback (selection was empty). */
-  fromClipboard: boolean;
-}
-
-/**
- * Selected text, optionally falling back to the clipboard as a LAST resort when the
- * selection is empty. `getSelectedText` can't reach apps that don't expose a selection
- * to a focused Form (e.g. Telegram / Electron); with the fallback on, the user copies
- * first. The selection always wins; the clipboard is read only when it is empty AND the
- * caller opted in (the `clipboardFallback` preference). The text is returned VERBATIM
- * (untrimmed) so `{content_f}` can wrap it exactly as-is; emptiness is decided on the
- * trimmed value, and callers trim where they need to (`{content}`, empty checks).
- */
-export async function readSelectionOrClipboard(
-  useClipboardFallback: boolean,
-): Promise<SelectionResult> {
-  const selection = await readSelection();
-  if (selection.trim() || !useClipboardFallback) {
-    return { text: selection, fromClipboard: false };
-  }
-  const clip = (await Clipboard.readText()) ?? "";
-  return { text: clip, fromClipboard: clip.trim().length > 0 };
+/** Current clipboard text, or "" when empty/unavailable. */
+export async function readClipboardText(): Promise<string> {
+  return (await Clipboard.readText()) ?? "";
 }
 
 export interface Source {

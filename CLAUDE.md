@@ -48,7 +48,7 @@ publish flow depend on them; do not reimplement logic in the Makefile or the two
   formatting, Markdown append (to file end or under a configurable heading), new-note + YAML frontmatter
   composition (escaping-safe), tag parsing, browser-app detection.
 - `src/shared.ts` — the non-command adapter (`@raycast/api` + `node:fs`): selection/clipboard and
-  browser/app capture (`readSource`, `readSelectionOrClipboard`) plus file read/write. Not in `lib`,
+  browser/app capture (`readSource`, `readSelection`, `readClipboardText`) plus file read/write. Not in `lib`,
   so not unit-tested — verify via `make dev`.
 - Tests colocated as `src/lib/*.test.ts`.
 - `assets/` — command icons (512×512 PNG + `@dark` variant), rasterized from the editable
@@ -72,31 +72,26 @@ publish flow depend on them; do not reimplement logic in the Makefile or the two
   (+ heading for append, frontmatter for create): `checklist*`/`appendNote*` (append commands),
   `task*`/`note*` + `defaultTags` (create commands), and the Form's `append{File,Heading,Template}` +
   `create{Directory,Template,Frontmatter}` + `defaultTags` (own duplicated paths, by design; exact keys
-  in `package.json`). Only `dateFormat`, `filenameDateFormat`, `mergeSeparator`, `clipboardFallback` stay
-  extension-scope. `defaultTags` is the same key in 3 scopes (task, note, form) — namespaced per command.
-- Template placeholders (all built in `lib/vars.buildTemplateVars`): each captured field has a RAW
-  form (trimmed, no label, `""` when empty) and a FORMATTED form (a labeled line ending in `\n`,
-  `""` when empty — so it vanishes cleanly; the baked-in `\n` means it can't sit inline).
-  Raw: `{content}` `{url}` `{title}` `{app}` `{project}` `{page}` `{tags}` (`"a, b"`); formatted:
-  `{content_f}` `{url_f}` `{title_f}` `{app_f}` `{project_f}` `{page_f}` `{tags_f}` (`Tags: a, b\n`); plus `{date}` (`EEE, d MMMM yyyy`) `{time}` (`HH:mm`)
-  `{datetime}` (the `dateFormat` pref). Labels: `From app: …` / `Url: <…>` / `Title: …` /
-  `Project: …` / `Page: …` / `Tags: …`. `{app}` is the
-  frontmost source-app name (ANY app, not just browsers). `{page}` is an adaptive Markdown link:
-  `[title](url)`, else `<url>`, else the title, else `""`. `{content_f}` wraps the content VERBATIM
-  in a four-backtick `text` code fence so pasted triple-backtick blocks can't break out.
-  Templates interpret `\n`/`\t`/`\\` escapes in the TEMPLATE
-  only (single-line prefs can't hold real newlines); escapes inside substituted values stay literal.
-  Trim policy: the capture is returned VERBATIM (`readSelectionOrClipboard` no longer trims);
-  `buildTemplateVars` trims the raw forms and `{content_f}` stays as-is; emptiness is judged on the
-  trimmed value. Rendered template output is NEVER trimmed, so intentional template `\n` survives.
-  Defaults: checklist `- [ ] **{date} {time}**: {content}`; append-note `{content}\n\n_{date} {time} · {app}_`;
-  task body `{content}`; note body `{content}\n\n{page_f}`. `{project}` reaches an APPEND target only if
-  its template references it (default templates don't → a project passed to
-  append is silently dropped, by design); in CREATE it is structural (title prefix + `project:`
-  field). No `{clipboard}` placeholder — commands prefill `{content}` from the
-  selection; only when the `clipboardFallback` preference is ON do they fall back to the clipboard
-  if the selection is empty (for non-AX apps like Telegram) — this applies to Silent too. The
-  manual "paste clipboard" action (Form only) always appends.
+  in `package.json`). Only `dateFormat`, `filenameDateFormat`, `mergeSeparator` stay extension-scope;
+  `useClipboard` is command-scope on all 5. `defaultTags` is the same key in 3 scopes (task, note, form) — namespaced per command.
+- Template placeholders (all built in `lib/vars.buildTemplateVars`; FULL TABLE in README): the
+  capture TRIO (`content`/`selected`/`clipboard`) each has a RAW form (trimmed, `""` when empty), a
+  FORMATTED `_f` twin (labeled line ending in `\n`, self-collapsing when empty — except `content_f`,
+  a four-backtick `text` fence wrapping content VERBATIM so pasted triple-backticks can't break out),
+  and a `_oneline` twin (`\s+`→space, trimmed). Others: `{extra}`/`{project}`, source
+  `{url}`/`{title}`/`{app}`/`{page}`, `{link}` (`[link](url)`, empty w/o url) — each with an `_f`
+  twin; `{tags}` bare (feeds YAML) vs `{tags_f}` `#`-prefixed; `{date}`/`{time}`/`{datetime}`.
+  `{page}` adapts `[title](url)`/`<url>`/title/`""`; `{app}` is the frontmost app (ANY app).
+  Escapes `\n`/`\t`/`\\` interpreted in the TEMPLATE only; escapes inside values stay literal. Trim
+  policy: capture read VERBATIM; raw forms trimmed, `{content_f}` as-is, emptiness on trimmed value;
+  rendered output NEVER trimmed. Defaults: checklist `- [ ] **{date} {time}**: {content}`; append-note
+  `{content}\n\n_{date} {time} · {app}_`; task body `{content}`; note `{content}\n\n{page_f}`.
+  `{project}` reaches APPEND only if the template references it (defaults don't → dropped, by design);
+  in CREATE it is structural (title prefix + `project:` field).
+- `{content}` = `extra + selection + clipboard` (present pieces only, `mergeSeparator` between) via
+  `lib/content.joinParts` for the four instant commands; the Form uses its Content field verbatim (so
+  `{selected}` == `{content}` there). Clipboard participates only when the per-command `useClipboard`
+  checkbox is ON (off = never read).
 - Create (New Task / New Note) writes YAML frontmatter — generated STRUCTURALLY in `lib`
   (`buildCreateFile`), never from the template — then the body template. Field order: configurable
   static fields from the `*Frontmatter` pref (`parseExtraFrontmatter`, `key: value; key2: value2`;
@@ -107,7 +102,7 @@ publish flow depend on them; do not reimplement logic in the Makefile or the two
   note is still identifiable.
 - The append commands, when their target already has frontmatter, refresh an `updated` field to now
   (same `dateFormat` as `created`) via `upsertUpdatedField`; files without frontmatter are left
-  untouched (no block injected). New Rapid Note ALWAYS writes a fresh file (never merges), so it has
+  untouched (no block injected). Create ALWAYS writes a fresh file (never merges), so it has
   no `updated`.
 - `dateFormat` (default `yyyy-MM-dd'T'HH:mm:ss`) → `created` + `{datetime}`; `filenameDateFormat`
   (default `yyyy-MM-dd-HHmmss`) → create filenames. Raycast prefs have no textarea — comma/semicolon
@@ -116,23 +111,23 @@ publish flow depend on them; do not reimplement logic in the Makefile or the two
   prefills its Tags field (replace, not merge), the Silent create commands read it directly — feeding
   both the `tags:` frontmatter and `{tags}`/`{tags_f}`. Silent APPEND has no tag source → `{tags}` empty.
 - Arguments (optional single-line, via `LaunchProps`; the four instant commands ONLY — the Form takes
-  NONE): `text` merges with the capture into one `{content}` via `lib/content.mergeCapturedContent`
-  (argument-first, separator only when BOTH present, capture verbatim, nullish → empty); `mergeSeparator`
-  → `separatorGlyph`: `semicolon` (default `"; "`) / `space` / `newline`. `project` (all four) feeds
-  `{project}`; the create commands also take a `title` argument (3-arg limit). `text` always feeds `{content}`.
+  NONE): `text` is `{extra}` and joins the `{content}` merge via `lib/content.joinParts` (present
+  pieces only, separator between adjacent kept pieces, capture verbatim); `mergeSeparator` →
+  `separatorGlyph`: `semicolon` (default `"; "`) / `space` / `newline`. `project` (all four) feeds
+  `{project}`; the create commands also take a `title` argument (3-arg limit).
 
 ## Gotchas
 
 - `getSelectedText()` REJECTS (throws) when nothing is selected — it never returns an empty string.
   Wrap in try/catch and treat rejection as empty. Needs macOS Accessibility permission. It reads via
   the AX API with a Cmd+C fallback that needs the SOURCE app frontmost, so non-AX apps (Telegram,
-  Electron) work only in `no-view` (Silent), NOT in a focus-stealing Form. Form commands therefore
-  offer `readSelectionOrClipboard` (selection first, clipboard last, gated by the `clipboardFallback`
-  preference) plus the manual "paste clipboard".
+  Electron) work only in `no-view` (Silent), NOT in a focus-stealing Form. The Form therefore prefills
+  Content from `readSelection` and shows a separate editable Clipboard field from `readClipboardText`,
+  gated by the `useClipboard` preference.
 - Silent (`no-view`) command: never render UI; give feedback via `showHUD`, and on empty input show
-  a HUD error and exit. It reads the selection, auto-reading the clipboard ONLY when the
-  `clipboardFallback` preference is ON (then the empty HUD reads "nothing selected or empty
-  clipboard"). Silent commits immediately, so clipboard auto-read stays behind that opt-in.
+  a HUD error and exit. It reads the selection, merging the clipboard ONLY when the
+  `useClipboard` preference is ON (then the empty HUD reads "nothing selected or empty
+  clipboard"). Silent commits immediately, so the clipboard read stays behind that opt-in.
 - Browser URL/title are best-effort and captured ONLY when the frontmost app is a browser
   (`getFrontmostApplication` + `lib/browser.isBrowserApp`), so a selection from another app never
   grabs an unrelated background tab. Gate the read with `environment.canAccess(BrowserExtension)`

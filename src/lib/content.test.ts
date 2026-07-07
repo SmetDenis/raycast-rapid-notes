@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { mergeCapturedContent, separatorGlyph } from "./content";
+import { joinParts, separatorGlyph } from "./content";
 
 describe("separatorGlyph", () => {
   test("maps the three preference enums to their glyphs", () => {
@@ -14,47 +14,27 @@ describe("separatorGlyph", () => {
   });
 });
 
-describe("mergeCapturedContent", () => {
+describe("joinParts", () => {
   const SEP = "; ";
 
-  test("joins argument and captured with the separator when both are present", () => {
-    expect(mergeCapturedContent("важное", "дедлайн в пятницу", SEP)).toBe(
-      "важное; дедлайн в пятницу",
-    );
+  test("joins all present parts with the separator, in order", () => {
+    expect(joinParts(["extra", "sel", "clip"], SEP)).toBe("extra; sel; clip");
   });
 
-  test("returns the argument alone when nothing is captured", () => {
-    expect(mergeCapturedContent("just a typed note", "", SEP)).toBe(
-      "just a typed note",
-    );
+  test("skips empty/whitespace-only parts (no leading/trailing separator)", () => {
+    expect(joinParts(["", "sel", "   "], SEP)).toBe("sel");
+    expect(joinParts(["extra", "", "clip"], SEP)).toBe("extra; clip");
   });
 
-  test("returns captured alone, verbatim, when no argument is typed", () => {
-    expect(mergeCapturedContent("", "  selected text  ", SEP)).toBe(
-      "  selected text  ",
-    );
+  test("returns the lone present part with no separator", () => {
+    expect(joinParts(["", "only", ""], SEP)).toBe("only");
   });
 
-  test("treats a nullish argument as empty", () => {
-    expect(mergeCapturedContent(undefined, "selected", SEP)).toBe("selected");
+  test("returns '' when every part is empty or whitespace", () => {
+    expect(joinParts(["", "  ", "\n"], SEP)).toBe("");
   });
 
-  test("returns the captured value as-is when neither side has real text", () => {
-    expect(mergeCapturedContent("", "", SEP)).toBe("");
-    // whitespace-only on both sides: argument is dropped, captured returned verbatim
-    // (the caller's `content.trim()` check is what treats this as empty).
-    expect(mergeCapturedContent("   ", "  \n ", SEP)).toBe("  \n ");
-  });
-
-  test("trims the argument but keeps captured verbatim after the separator", () => {
-    expect(mergeCapturedContent("  note  ", "  body  ", SEP)).toBe(
-      "note;   body  ",
-    );
-  });
-
-  test("keeps a multi-line captured block intact with the newline separator", () => {
-    expect(mergeCapturedContent("summary", "line1\nline2", "\n")).toBe(
-      "summary\nline1\nline2",
-    );
+  test("keeps each present part verbatim but tests emptiness on the trimmed value", () => {
+    expect(joinParts([" a ", "b\n", ""], "|")).toBe(" a |b\n");
   });
 });

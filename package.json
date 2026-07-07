@@ -22,7 +22,8 @@
       "preferences": [
         { "name": "checklistFile", "title": "File", "description": "Markdown file this command writes to.", "type": "file", "required": false },
         { "name": "checklistHeading", "title": "Heading", "description": "Append under this heading (case-insensitive). Leading #s set the level, e.g. '## Tasks'; plain text is H1; leave empty to append to the end of the file.", "type": "textfield", "required": false, "default": "" },
-        { "name": "checklistTemplate", "title": "Template", "description": "Template per appended item. Placeholders: {content} {url} {title} {app} {project} {page} {tags} {date} {time} {datetime}; formatted (label + newline): {content_f} {url_f} {title_f} {app_f} {project_f} {page_f} {tags_f}.", "type": "textfield", "required": false, "default": "- [ ] **{date} {time}**: {content}" }
+        { "name": "checklistTemplate", "title": "Template", "description": "Body/line template. Placeholders: {content} {selected} {clipboard} {extra} {project} {url} {title} {app} {page} {link} {tags} {date} {time} {datetime}; the capture trio also has {*_f} and {*_oneline} forms. Full table in README.", "type": "textfield", "required": false, "default": "- [ ] **{date} {time}**: {content}" },
+        { "name": "useClipboard", "title": "Clipboard", "label": "Merge the clipboard into the capture", "description": "When on, the clipboard is read, appended to {content}, and available as {clipboard} / {clipboard_f} / {clipboard_oneline}. When off, the clipboard is never read.", "type": "checkbox", "required": false, "default": false }
       ],
       "arguments": [
         {
@@ -47,7 +48,8 @@
       "preferences": [
         { "name": "appendNoteFile", "title": "File", "description": "Markdown file this command writes to.", "type": "file", "required": false },
         { "name": "appendNoteHeading", "title": "Heading", "description": "Append under this heading (case-insensitive). Leading #s set the level; plain text is H1; leave empty to append to the end of the file.", "type": "textfield", "required": false, "default": "" },
-        { "name": "appendNoteTemplate", "title": "Template", "description": "Template per appended block. Same placeholders as the checklist template (incl. {tags}/{tags_f}).", "type": "textfield", "required": false, "default": "{content}\\n\\n_{date} {time} · {app}_" }
+        { "name": "appendNoteTemplate", "title": "Template", "description": "Body/line template. Placeholders: {content} {selected} {clipboard} {extra} {project} {url} {title} {app} {page} {link} {tags} {date} {time} {datetime}; the capture trio also has {*_f} and {*_oneline} forms. Full table in README.", "type": "textfield", "required": false, "default": "{content}\\n\\n_{date} {time} · {app}_" },
+        { "name": "useClipboard", "title": "Clipboard", "label": "Merge the clipboard into the capture", "description": "When on, the clipboard is read, appended to {content}, and available as {clipboard} / {clipboard_f} / {clipboard_oneline}. When off, the clipboard is never read.", "type": "checkbox", "required": false, "default": false }
       ],
       "arguments": [
         {
@@ -71,9 +73,10 @@
       "mode": "no-view",
       "preferences": [
         { "name": "taskDirectory", "title": "Directory", "description": "Folder where new task files are created.", "type": "directory", "required": false },
-        { "name": "taskTemplate", "title": "Body Template", "description": "Template for the task body; YAML frontmatter is added automatically. Same placeholders as the append templates (incl. {tags}/{tags_f}).", "type": "textfield", "required": false, "default": "{content}" },
+        { "name": "taskTemplate", "title": "Body Template", "description": "Body/line template. Placeholders: {content} {selected} {clipboard} {extra} {project} {url} {title} {app} {page} {link} {tags} {date} {time} {datetime}; the capture trio also has {*_f} and {*_oneline} forms. Full table in README.", "type": "textfield", "required": false, "default": "{content}" },
         { "name": "taskFrontmatter", "title": "Frontmatter", "description": "Extra YAML frontmatter as 'key: value; key2: value2'. Reserved keys (created, title, project, tags, source_url, updated) are set automatically and rejected here.", "type": "textfield", "required": false, "default": "type: task; task_status: active" },
-        { "name": "defaultTags", "title": "Default Tags", "description": "Comma-separated tags written to new task files (and available as {tags}).", "type": "textfield", "required": false, "default": "" }
+        { "name": "defaultTags", "title": "Default Tags", "description": "Comma-separated tags written to new task files (and available as {tags}).", "type": "textfield", "required": false, "default": "" },
+        { "name": "useClipboard", "title": "Clipboard", "label": "Merge the clipboard into the capture", "description": "When on, the clipboard is read, appended to {content}, and available as {clipboard} / {clipboard_f} / {clipboard_oneline}. When off, the clipboard is never read.", "type": "checkbox", "required": false, "default": false }
       ],
       "arguments": [
         {
@@ -103,9 +106,10 @@
       "mode": "no-view",
       "preferences": [
         { "name": "noteDirectory", "title": "Directory", "description": "Folder where new note files are created.", "type": "directory", "required": false },
-        { "name": "noteTemplate", "title": "Body Template", "description": "Template for the note body; YAML frontmatter is added automatically. Same placeholders as the append templates (incl. {tags}/{tags_f}).", "type": "textfield", "required": false, "default": "{content}\\n\\n{page_f}" },
+        { "name": "noteTemplate", "title": "Body Template", "description": "Body/line template. Placeholders: {content} {selected} {clipboard} {extra} {project} {url} {title} {app} {page} {link} {tags} {date} {time} {datetime}; the capture trio also has {*_f} and {*_oneline} forms. Full table in README.", "type": "textfield", "required": false, "default": "{content}\\n\\n{page_f}" },
         { "name": "noteFrontmatter", "title": "Frontmatter", "description": "Extra YAML frontmatter as 'key: value; key2: value2'. Reserved keys (created, title, project, tags, source_url, updated) are set automatically and rejected here.", "type": "textfield", "required": false, "default": "type: note" },
-        { "name": "defaultTags", "title": "Default Tags", "description": "Comma-separated tags written to new note files (and available as {tags}).", "type": "textfield", "required": false, "default": "" }
+        { "name": "defaultTags", "title": "Default Tags", "description": "Comma-separated tags written to new note files (and available as {tags}).", "type": "textfield", "required": false, "default": "" },
+        { "name": "useClipboard", "title": "Clipboard", "label": "Merge the clipboard into the capture", "description": "When on, the clipboard is read, appended to {content}, and available as {clipboard} / {clipboard_f} / {clipboard_oneline}. When off, the clipboard is never read.", "type": "checkbox", "required": false, "default": false }
       ],
       "arguments": [
         {
@@ -136,11 +140,12 @@
       "preferences": [
         { "name": "appendFile", "title": "Append: File", "description": "Markdown file the form appends to when 'Append' is selected.", "type": "file", "required": false },
         { "name": "appendHeading", "title": "Append: Heading", "description": "Append under this heading (case-insensitive). Leading #s set the level; plain text is H1; empty appends to the end of the file.", "type": "textfield", "required": false, "default": "" },
-        { "name": "appendTemplate", "title": "Append: Template", "description": "Template for the appended block. Placeholders incl. {content} {page} {tags} {date} {time} and their {*_f} forms.", "type": "textfield", "required": false, "default": "{content}\\n\\n_{date} {time} · {app}_" },
+        { "name": "appendTemplate", "title": "Append: Template", "description": "Body/line template. Placeholders: {content} {selected} {clipboard} {extra} {project} {url} {title} {app} {page} {link} {tags} {date} {time} {datetime}; the capture trio also has {*_f} and {*_oneline} forms. Full table in README.", "type": "textfield", "required": false, "default": "{content}\\n\\n_{date} {time} · {app}_" },
         { "name": "createDirectory", "title": "Create: Directory", "description": "Folder where the form creates a new file when 'Create' is selected.", "type": "directory", "required": false },
-        { "name": "createTemplate", "title": "Create: Body Template", "description": "Template for the created file body; YAML frontmatter is added automatically.", "type": "textfield", "required": false, "default": "{content}\\n\\n{page_f}" },
+        { "name": "createTemplate", "title": "Create: Body Template", "description": "Body/line template. Placeholders: {content} {selected} {clipboard} {extra} {project} {url} {title} {app} {page} {link} {tags} {date} {time} {datetime}; the capture trio also has {*_f} and {*_oneline} forms. Full table in README.", "type": "textfield", "required": false, "default": "{content}\\n\\n{page_f}" },
         { "name": "createFrontmatter", "title": "Create: Frontmatter", "description": "Extra YAML frontmatter as 'key: value; key2: value2'. Reserved keys are set automatically and rejected here.", "type": "textfield", "required": false, "default": "type: note" },
-        { "name": "defaultTags", "title": "Default Tags", "description": "Comma-separated tags prefilled into the form's Tags field.", "type": "textfield", "required": false, "default": "" }
+        { "name": "defaultTags", "title": "Default Tags", "description": "Comma-separated tags prefilled into the form's Tags field.", "type": "textfield", "required": false, "default": "" },
+        { "name": "useClipboard", "title": "Clipboard", "label": "Merge the clipboard into the capture", "description": "When on, the clipboard is read, appended to {content}, and available as {clipboard} / {clipboard_f} / {clipboard_oneline}. When off, the clipboard is never read.", "type": "checkbox", "required": false, "default": false }
       ]
     }
   ],
@@ -163,8 +168,8 @@
     },
     {
       "name": "mergeSeparator",
-      "title": "Argument + Selection Separator",
-      "description": "How a typed argument joins with the selected/clipboard text when both are present.",
+      "title": "Merge Separator",
+      "description": "How the typed argument, selection, and clipboard are joined in {content} when more than one is present.",
       "type": "dropdown",
       "required": false,
       "default": "semicolon",
@@ -182,15 +187,6 @@
           "value": "newline"
         }
       ]
-    },
-    {
-      "name": "clipboardFallback",
-      "title": "Clipboard Fallback",
-      "label": "Use the clipboard when no text is selected",
-      "description": "When on, commands fall back to the clipboard if nothing is selected — for apps like Telegram. Copy the text first, then run the command.",
-      "type": "checkbox",
-      "required": false,
-      "default": false
     }
   ],
   "scripts": {

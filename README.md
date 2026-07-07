@@ -1,43 +1,49 @@
 # Rapid Notes
 
-Raycast extension for fast note capture - append selected or typed text to a Markdown file as checklist items, or create a new timestamped note with frontmatter, all driven by templates with placeholders.
+Raycast extension for fast note capture - append selected or typed text under a heading in a Markdown file, or create a new timestamped task/note file with YAML frontmatter, all driven by templates with placeholders.
 
 ## Commands
 
-- **Append Rapid Item** - a form to edit the selected/typed text before appending.
-- **Append Rapid Item (Silent)** - instantly append the current selection, no UI.
-- **New Rapid Note** - create a timestamped note with `created` / `tags` / `title` frontmatter.
+Four instant (`no-view`, hotkey-friendly) commands plus one editable form:
+
+- **Append Checklist** - instantly append the selection or typed text as a checklist item under a heading.
+- **Append Note** - instantly append it as a block under a heading.
+- **New Task** - instantly create a timestamped task file with YAML frontmatter.
+- **New Note** - instantly create a timestamped note file with YAML frontmatter.
+- **Rapid Note** - an editable form to review the capture before appending or creating a file.
 
 ## Templates
 
-Both **Append Rapid Item: Template** and **New Rapid Note: Body Template** accept the same placeholders. The preference fields are single-line, so write a newline as `\n`, a tab as `\t`, and a literal backslash as `\\` - the escapes are interpreted in the template only, never in the captured text.
+Every command's template preference accepts the same placeholders. The preference fields are single-line, so write a newline as `\n`, a tab as `\t`, and a literal backslash as `\\` - the escapes are interpreted in the template only, never in the captured text.
 
 ### Placeholders
 
-| Raw           | Value                                                       | Example (from a browser)                       |
-|---------------|-------------------------------------------------------------|------------------------------------------------|
-| `{content}`   | Captured or typed text, trimmed                             | `Fix the login redirect`                       |
-| `{content_f}` | Capture wrapped in a `text` code fence                      | four backticks, so pasted code can't break out |
-| `{url}`       | Active browser-tab URL                                      | `https://example.com/a`                        |
-| `{url_f}`     | `Url: <…>`                                                  | `Url: <https://example.com/a>`                 |
-| `{title}`     | Active browser-tab title                                    | `Example Page`                                 |
-| `{title_f}`   | `Title: …`                                                  | `Title: Example Page`                          |
-| `{app}`       | Frontmost app name (any app, always available)              | `Google Chrome`                                |
-| `{app_f}`     | `From app: …`                                               | `From app: Google Chrome`                      |
-| `{page}`      | Adaptive link: `[title](url)`, else `<url>`, else the title | `[Example Page](https://example.com/a)`        |
-| `{page_f}`    | `Page: …`                                                   | `Page: [Example Page](https://example.com/a)`  |
-| `{date}`      | `EEE, d MMMM yyyy`                                          | `Sun, 5 July 2026`                             |
-| `{time}`      | `HH:mm`                                                     | `23:36`                                        |
-| `{datetime}`  | Your **Date Format** preference                             | `2026-07-05T23:36:00`                          |
+The capture trio (`content`, `selected`, `clipboard`) each has a raw form, a formatted `_f` twin
+(a labeled line that self-collapses when empty - except `content_f`, a four-backtick code fence),
+and a `_oneline` twin (whitespace collapsed to single spaces).
 
-That is the complete set of variables - five raw (`{content}` `{url}` `{title}` `{app}` `{page}`), five formatted twins (`{content_f}` `{url_f}` `{title_f}` `{app_f}` `{page_f}`), and three date/time
-(`{date}` `{time}` `{datetime}`).
+| Placeholder                                             | Value                                                                                                                   |
+|---------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------|
+| `{content}`                                             | Primary text. Instant commands: `extra` + selection + clipboard joined by the Merge Separator. Form: the Content field. |
+| `{content_f}`                                           | `{content}` wrapped VERBATIM in a four-backtick `text` code fence (pasted code can't break out)                         |
+| `{content_oneline}`                                     | `{content}` with newlines/whitespace collapsed to single spaces                                                         |
+| `{selected}` / `{selected_f}` / `{selected_oneline}`    | Raw selection · `Selected: …` · one-line                                                                                |
+| `{clipboard}` / `{clipboard_f}` / `{clipboard_oneline}` | Clipboard (needs **Merge the clipboard** on) · `Clipboard: …` · one-line                                                |
+| `{extra}` / `{extra_f}`                                 | The typed text argument · `Extra: …`                                                                                    |
+| `{project}` / `{project_f}`                             | Project (argument or the Form's Project field) · `Project: …`                                                           |
+| `{url}` / `{url_f}`                                     | Active browser-tab URL · `Url: <…>`                                                                                     |
+| `{title}` / `{title_f}`                                 | Active browser-tab title · `Title: …`                                                                                   |
+| `{app}` / `{app_f}`                                     | Frontmost app name · `From app: …`                                                                                      |
+| `{page}` / `{page_f}`                                   | Adaptive link `[title](url)` / `<url>` / title · `Page: …`                                                              |
+| `{link}` / `{link_f}`                                   | Fixed-anchor link `[link](url)` (inline) · same on its own line                                                         |
+| `{tags}` / `{tags_f}`                                   | `tag1, tag2` (bare, for YAML) · `Tags: #tag1, #tag2`                                                                    |
+| `{date}` / `{time}` / `{datetime}`                      | `EEE, d MMMM yyyy` · `HH:mm` · your **Date Format** preference                                                          |
 
 Notes:
 
-- `{url}` / `{title}` / `{page}` are filled only when you capture from a browser; `{app}` is the frontmost app and is always available.
-- **New Rapid Note** writes its YAML frontmatter (`created`, `tags`, `title`, `source_url`,
-  `type`, `task_status`) automatically - put only body content in the Body Template.
+- `{url}` / `{title}` / `{page}` / `{link}` are filled only when you capture from a browser; `{app}` is always available.
+- `{clipboard}` (and the clipboard's contribution to `{content}`) require the per-command **Merge the clipboard into the capture** preference.
+- **Create** commands write YAML frontmatter (`created`, `tags`, `title`, `source_url`, plus your extra fields) automatically - put only body content in the template.
 
 ### Append examples (checklist file)
 
@@ -46,6 +52,8 @@ Notes:
 - **Dated task** - `- [ ] {content} (added {date})` → `- [ ] Fix the login redirect (added Sun, 5 July 2026)`
 - **Worklog / standup line** - `- {time} - {content}` → `- 23:36 - Fix the login redirect`
 - **Reading list with link** - `- [ ] {content} - {page}` → `- [ ] Fix the login redirect - [Example Page](https://example.com/a)`
+- **Compact source link** - `- [ ] {content} {link}` → `- [ ] Fix the login redirect [link](https://example.com/a)`
+- **Merge a copied snippet** (needs **Merge the clipboard into the capture** on) - `{content}\n{clipboard_f}` - the capture, then a self-collapsing `Clipboard: …` line.
 - **Quote with source** (multi-line via `\n`) - `> {content}\n> - {page}`:
 
   ```
@@ -65,7 +73,7 @@ Notes:
 
 - **Code snippet** - `{content_f}` - wraps the selection verbatim in a fenced `text` block; empty captures collapse to nothing.
 
-### New Rapid Note examples (body template)
+### Create examples (body template)
 
 - **Plain capture** (default) - `{content}`
 - **Daily journal** - `# {date}\n\n{content}`:
@@ -109,7 +117,7 @@ Added: 2026-07-05T23:36:00
 
 From a non-browser app the `Page:` line disappears; `From app:` and `Added:` stay.
 
-**New Rapid Note - clipped note**
+**Create - clipped note**
 
 `{content_f}\n{page_f}{app_f}Captured: {datetime}`
 
@@ -133,8 +141,7 @@ From app: Google Chrome
 Captured: 2026-07-05T23:36:00
 ~~~
 
-`title` and `source_url` in the frontmatter come from the form's title field and the browser URL
-(generated structurally), not from the body template - so the body stays free of duplicated metadata.
+`title` and `source_url` in the frontmatter come from the title (argument or the form's Title field) and the browser URL (generated structurally), not from the body template - so the body stays free of duplicated metadata.
 
 ## Development
 

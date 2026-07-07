@@ -1,6 +1,6 @@
 import { Toast, showHUD, showToast } from "@raycast/api";
 import { join } from "node:path";
-import { mergeCapturedContent, separatorGlyph } from "./lib/content";
+import { joinParts, separatorGlyph } from "./lib/content";
 import { formatDate } from "./lib/datetime";
 import { uniqueFilename } from "./lib/filename";
 import { upsertUpdatedField } from "./lib/frontmatter";
@@ -10,8 +10,9 @@ import { renderTemplate } from "./lib/template";
 import { buildTemplateVars } from "./lib/vars";
 import {
   fileExists,
+  readClipboardText,
   readFile,
-  readSelectionOrClipboard,
+  readSelection,
   readSource,
   writeFile,
 } from "./shared";
@@ -22,7 +23,7 @@ import {
 /** Prefs the instant APPEND path needs. No defaultTags (append has no tag source) and no filenameDateFormat. */
 export interface AppendPrefs {
   dateFormat: string;
-  clipboardFallback: boolean;
+  useClipboard: boolean;
   mergeSeparator: string;
 }
 
@@ -53,15 +54,15 @@ export async function runSilentAppend(
     await showHUD(`Rapid Notes: set the ${label} file in preferences`);
     return;
   }
-  const captured = await readSelectionOrClipboard(prefs.clipboardFallback);
-  const content = mergeCapturedContent(
-    args.text,
-    captured.text,
+  const selected = await readSelection();
+  const clipboard = prefs.useClipboard ? await readClipboardText() : "";
+  const content = joinParts(
+    [(args.text ?? "").trim(), selected, clipboard],
     separatorGlyph(prefs.mergeSeparator),
   );
   if (!content.trim()) {
     await showHUD(
-      prefs.clipboardFallback
+      prefs.useClipboard
         ? "Rapid Notes: nothing selected or empty clipboard"
         : "Rapid Notes: nothing selected",
     );
@@ -74,6 +75,9 @@ export async function runSilentAppend(
       config.template,
       buildTemplateVars({
         content,
+        extra: args.text ?? "",
+        selected,
+        clipboard,
         url: source.url,
         title: source.title,
         app: source.app,
@@ -112,10 +116,10 @@ export async function runSilentCreate(
     await showHUD(`Rapid Notes: set the ${label} directory in preferences`);
     return;
   }
-  const captured = await readSelectionOrClipboard(prefs.clipboardFallback);
-  const content = mergeCapturedContent(
-    args.text,
-    captured.text,
+  const selected = await readSelection();
+  const clipboard = prefs.useClipboard ? await readClipboardText() : "";
+  const content = joinParts(
+    [(args.text ?? "").trim(), selected, clipboard],
     separatorGlyph(prefs.mergeSeparator),
   );
   const title = args.title ?? "";
@@ -130,6 +134,9 @@ export async function runSilentCreate(
     const tags = parseTags(prefs.defaultTags ?? "");
     const vars = buildTemplateVars({
       content,
+      extra: args.text ?? "",
+      selected,
+      clipboard,
       url: source.url,
       title,
       app: source.app,

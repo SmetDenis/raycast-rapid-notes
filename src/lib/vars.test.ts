@@ -9,6 +9,9 @@ describe("buildTemplateVars", () => {
     expect(
       buildTemplateVars({
         content: "  Selected text  ",
+        extra: " typed note ",
+        selected: "  Selected text  ",
+        clipboard: "clip me",
         url: "https://example.com",
         title: "Some title",
         app: "Telegram",
@@ -18,22 +21,38 @@ describe("buildTemplateVars", () => {
         tags: ["work", "urgent"],
       }),
     ).toEqual({
-      // Raw values — trimmed, no label.
+      // capture trio — raw
       content: "Selected text",
-      app: "Telegram",
-      url: "https://example.com",
-      title: "Some title",
-      project: "Work",
-      page: "[Some title](https://example.com)",
-      tags: "work, urgent",
-      tags_f: "Tags: work, urgent\n",
-      // Formatted variants — label/decoration + trailing newline.
+      selected: "Selected text",
+      clipboard: "clip me",
+      // capture trio — oneline
+      content_oneline: "Selected text",
+      selected_oneline: "Selected text",
+      clipboard_oneline: "clip me",
+      // capture trio — formatted
       content_f: "````text\n  Selected text  \n````\n",
-      app_f: "From app: Telegram\n",
-      url_f: "Url: <https://example.com>\n",
-      title_f: "Title: Some title\n",
+      selected_f: "Selected: Selected text\n",
+      clipboard_f: "Clipboard: clip me\n",
+      // inputs
+      extra: "typed note",
+      extra_f: "Extra: typed note\n",
+      project: "Work",
       project_f: "Project: Work\n",
+      // source
+      url: "https://example.com",
+      url_f: "Url: <https://example.com>\n",
+      title: "Some title",
+      title_f: "Title: Some title\n",
+      app: "Telegram",
+      app_f: "From app: Telegram\n",
+      page: "[Some title](https://example.com)",
       page_f: "Page: [Some title](https://example.com)\n",
+      link: "[link](https://example.com)",
+      link_f: "[link](https://example.com)\n",
+      // tags
+      tags: "work, urgent",
+      tags_f: "Tags: #work, #urgent\n",
+      // date/time
       date: "Sun, 5 July 2026",
       time: "14:32",
       datetime: "2026-07-05T14:32:09",
@@ -144,7 +163,7 @@ describe("buildTemplateVars", () => {
       tags: ["work", "urgent"],
     });
     expect(v.tags).toBe("work, urgent");
-    expect(v.tags_f).toBe("Tags: work, urgent\n");
+    expect(v.tags_f).toBe("Tags: #work, #urgent\n");
   });
 
   test("collapses missing/empty tags to '' for both {tags} and {tags_f}", () => {
@@ -159,5 +178,120 @@ describe("buildTemplateVars", () => {
     });
     expect(v.tags).toBe("");
     expect(v.tags_f).toBe("");
+  });
+
+  test("collapses whitespace to one space and trims for the _oneline trio", () => {
+    const v = buildTemplateVars({
+      content: "a\n\nb  c",
+      selected: "  s1\ts2 ",
+      clipboard: "line1\nline2",
+      url: "",
+      title: "",
+      app: "",
+      project: "",
+      now: NOW,
+      dateFormat: FMT,
+    });
+    expect(v.content_oneline).toBe("a b c");
+    expect(v.selected_oneline).toBe("s1 s2");
+    expect(v.clipboard_oneline).toBe("line1 line2");
+  });
+
+  test("labels selected_f/clipboard_f and collapses empty ones to ''", () => {
+    const present = buildTemplateVars({
+      content: "x",
+      selected: " sel ",
+      clipboard: " clip ",
+      url: "",
+      title: "",
+      app: "",
+      project: "",
+      now: NOW,
+      dateFormat: FMT,
+    });
+    expect(present.selected_f).toBe("Selected: sel\n");
+    expect(present.clipboard_f).toBe("Clipboard: clip\n");
+    const empty = buildTemplateVars({
+      content: "x",
+      selected: "   ",
+      clipboard: "",
+      url: "",
+      title: "",
+      app: "",
+      project: "",
+      now: NOW,
+      dateFormat: FMT,
+    });
+    expect(empty.selected).toBe("");
+    expect(empty.selected_f).toBe("");
+    expect(empty.selected_oneline).toBe("");
+    expect(empty.clipboard).toBe("");
+    expect(empty.clipboard_f).toBe("");
+  });
+
+  test("exposes {extra}/{extra_f} trimmed and labeled, empty when blank", () => {
+    const v = buildTemplateVars({
+      content: "x",
+      extra: "  note  ",
+      url: "",
+      title: "",
+      app: "",
+      project: "",
+      now: NOW,
+      dateFormat: FMT,
+    });
+    expect(v.extra).toBe("note");
+    expect(v.extra_f).toBe("Extra: note\n");
+    const blank = buildTemplateVars({
+      content: "x",
+      url: "",
+      title: "",
+      app: "",
+      project: "",
+      now: NOW,
+      dateFormat: FMT,
+    });
+    expect(blank.extra).toBe("");
+    expect(blank.extra_f).toBe("");
+  });
+
+  test("builds {link}/{link_f}, empty when there is no url", () => {
+    const withUrl = buildTemplateVars({
+      content: "x",
+      url: "https://example.com",
+      title: "",
+      app: "",
+      project: "",
+      now: NOW,
+      dateFormat: FMT,
+    });
+    expect(withUrl.link).toBe("[link](https://example.com)");
+    expect(withUrl.link_f).toBe("[link](https://example.com)\n");
+    const noUrl = buildTemplateVars({
+      content: "x",
+      url: "",
+      title: "",
+      app: "",
+      project: "",
+      now: NOW,
+      dateFormat: FMT,
+    });
+    expect(noUrl.link).toBe("");
+    expect(noUrl.link_f).toBe("");
+  });
+
+  test("prefixes # in {tags_f} but keeps {tags} bare", () => {
+    const v = buildTemplateVars({
+      content: "x",
+      url: "",
+      title: "",
+      app: "",
+      project: "",
+      now: NOW,
+      dateFormat: FMT,
+      tags: ["work", "urgent"],
+    });
+    expect(v.tags).toBe("work, urgent");
+    expect(v.tags_f).toBe("Tags: #work, #urgent\n");
   });
 });

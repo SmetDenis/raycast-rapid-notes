@@ -18,21 +18,10 @@ export function separatorGlyph(choice: string): string {
 }
 
 /**
- * Merge a typed inline argument with captured text (selection, or the clipboard fallback) into a
- * single content value. Argument-first: `argument + sep + captured`. The argument is trimmed; the
- * captured text is preserved VERBATIM (so `{content_f}` can wrap it exactly). The separator is
- * inserted only when BOTH sides have real text; when only one side does, that side is returned
- * alone. A nullish argument (Raycast may pass `undefined` for an empty optional field) is treated
- * as empty. Emptiness is judged on the trimmed value; the returned string is never trimmed.
+ * Join the parts whose trimmed value is non-empty, with `sep` between adjacent kept parts. Each
+ * kept part contributes its value VERBATIM (so a code fence can wrap it exactly); callers trim the
+ * pieces they want trimmed (e.g. the typed argument) before passing them in.
  */
-export function mergeCapturedContent(
-  argument: string | undefined,
-  captured: string,
-  sep: string,
-): string {
-  const a = (argument ?? "").trim();
-  const hasCaptured = captured.trim() !== "";
-  if (a && hasCaptured) return a + sep + captured;
-  if (a) return a;
-  return captured;
+export function joinParts(parts: string[], sep: string): string {
+  return parts.filter((p) => p.trim() !== "").join(sep);
 }
