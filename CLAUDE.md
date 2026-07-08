@@ -44,9 +44,10 @@ publish flow depend on them; do not reimplement logic in the Makefile or the two
     mode dropdown `{append|create}` appends under a heading in `appendFile` or creates in `createDirectory`; no arguments.
   - `src/capture.ts` — non-command adapter helper (`@raycast/api`): `runSilentAppend`/`runSilentCreate`
     shared by the four `no-view` commands. Not in `lib`, not unit-tested — verify via `make dev`.
-- `src/lib/` — pure core, no `@raycast/api`: template/placeholder rendering, date + timestamp-filename
-  formatting, Markdown append (to file end or under a configurable heading), new-note + YAML frontmatter
-  composition (escaping-safe), tag parsing, browser-app detection.
+- `src/lib/` — pure core, no `@raycast/api`: placeholder rendering + default templates as
+  vars-functions (`templates.ts`), date + timestamp-filename formatting, Markdown append (to file end
+  or under a configurable heading), new-note + YAML frontmatter composition (escaping-safe), tag
+  parsing, browser-app detection.
 - `src/shared.ts` — the non-command adapter (`@raycast/api` + `node:fs`): selection/clipboard and
   browser/app capture (`readSource`, `readSelection`, `readClipboardText`) plus file read/write. Not in `lib`,
   so not unit-tested — verify via `make dev`.
@@ -74,24 +75,33 @@ publish flow depend on them; do not reimplement logic in the Makefile or the two
   `create{Directory,Template,Frontmatter}` + `defaultTags` (own duplicated paths, by design; exact keys
   in `package.json`). Only `dateFormat`, `filenameDateFormat`, `mergeSeparator` stay extension-scope;
   `useClipboard` is command-scope on all 5. `defaultTags` is the same key in 3 scopes (task, note, form) — namespaced per command.
-- Template placeholders (all built in `lib/vars.buildTemplateVars`; FULL TABLE in README): the
-  capture TRIO (`content`/`selected`/`clipboard`) each has a RAW form (trimmed, `""` when empty), a
-  FORMATTED `_f` twin (labeled line ending in `\n`, self-collapsing when empty — except `content_f`,
-  a four-backtick `text` fence wrapping content VERBATIM so pasted triple-backticks can't break out),
-  and a `_oneline` twin (`\s+`→space, trimmed). Others: `{extra}`/`{project}`, source
-  `{url}`/`{title}`/`{app}`/`{page}`, `{link}` (`[link](url)`, empty w/o url) — each with an `_f`
-  twin; `{tags}` bare (feeds YAML) vs `{tags_f}` `#`-prefixed; `{date}`/`{time}`/`{datetime}`.
-  `{page}` adapts `[title](url)`/`<url>`/title/`""`; `{app}` is the frontmost app (ANY app).
+- Template placeholders (all built in `lib/vars.buildTemplateVars`; FULL TABLE in README): capture
+  TRIO (`content`/`selected`/`clipboard`) each has a RAW form (trimmed, `""` when empty), an `_f` twin
+  (labeled line ending in `\n`, self-collapsing — except `content_f`, a four-backtick `text` fence
+  wrapping content VERBATIM so pasted backticks can't break out), and an `_inline` twin (`\s+`→space).
+  Others: `{extra}`/`{project}`, source `{url}`/`{title}`/`{app}`/`{page}`/`{link}` (each with an `_f`
+  twin); `{tags}` bare (feeds YAML) vs `{tags_f}` `#`-prefixed; `{date}` (`EEE, d MMMM yyyy`)/`{time}`
+  (`HH:mm`)/`{datetime}` (the `dateFormat` pref). `{page}` adapts `[title](url)`/`<url>`/title/`""`.
   Escapes `\n`/`\t`/`\\` interpreted in the TEMPLATE only; escapes inside values stay literal. Trim
-  policy: capture read VERBATIM; raw forms trimmed, `{content_f}` as-is, emptiness on trimmed value;
-  rendered output NEVER trimmed. Defaults: checklist `- [ ] **{date} {time}**: {content}`; append-note
-  `{content}\n\n_{date} {time} · {app}_`; task body `{content}`; note `{content}\n\n{page_f}`.
-  `{project}` reaches APPEND only if the template references it (defaults don't → dropped, by design);
-  in CREATE it is structural (title prefix + `project:` field).
+  policy: capture VERBATIM; raw forms trimmed, `{content_f}` as-is, emptiness on trimmed value;
+  rendered output NEVER trimmed. `{project}` reaches APPEND only if the template references it (defaults
+  don't → dropped, by design); in CREATE it is structural (title prefix + `project:` field).
+- Defaults are FUNCTIONS `(vars) => string` in `lib/templates.DEFAULT_TEMPLATES` (one per pref), NOT
+  strings — a default uses real JS (conditionals, fallbacks, self-collapsing inline punctuation) the
+  `{key}` engine can't express, rendering cleanly across every capture branch with NO new narrow vars.
+  `renderTemplateOrDefault(pref, defaultFn, vars)`: a non-blank pref string → `renderTemplate` (`{key}`
+  substitution), else `defaultFn(vars)`. Resolve happens INSIDE the adapter (`capture.ts` / the Form's
+  `handleSubmit`) where `vars` exist — the four command files pass `pref`+`defaultFn`, NOT a pre-resolved
+  string. ASYMMETRY BY DESIGN: a default (function) can output what a user pref (string) cannot; custom
+  strings stay simpler. `{app}` is rendered 3 ways, chosen by line shape: inline `(app)` (checklist),
+  `From app:` block-line (appendNote), DROPPED (formAppend — the focus-stealing Form may resolve `{app}`
+  to "Raycast"; restore only if confirmed otherwise). Current defaults: checklist dated line + inline
+  `[link]`/`(app)`; appendNote dated block + `{app_f}{page_f}` + `> [!comment]` slot (`{extra}` or `?`)
+  + selection fence + `---`; task `{content}`; note/formCreate `{content}\n\n{page_f}`; formAppend
+  `{content}` + dated footer (no app).
 - `{content}` = `extra + selection + clipboard` (present pieces only, `mergeSeparator` between) via
-  `lib/content.joinParts` for the four instant commands; the Form uses its Content field verbatim (so
-  `{selected}` == `{content}` there). Clipboard participates only when the per-command `useClipboard`
-  checkbox is ON (off = never read).
+  `lib/content.joinParts` for the four instant commands; the Form uses its Content field verbatim
+  (`{selected}` == `{content}` there). Clipboard participates only when `useClipboard` is ON.
 - Create (New Task / New Note) writes YAML frontmatter — generated STRUCTURALLY in `lib`
   (`buildCreateFile`), never from the template — then the body template. Field order: configurable
   static fields from the `*Frontmatter` pref (`parseExtraFrontmatter`, `key: value; key2: value2`;
@@ -161,34 +171,27 @@ publish flow depend on them; do not reimplement logic in the Makefile or the two
 
 ## Docs & fast lookup
 
-Prefer these over memory when writing extension code or answering Raycast API/tooling questions —
-they are current, training data is not. Search them proactively before guessing.
+Prefer these over memory for Raycast API/tooling questions — current where training data is stale; search before guessing.
 
 - Context7 (`query-docs`): `/raycast/extensions` — real extension source, for "how do others do X".
-  CAUTION: `/llmstxt/developers_raycast_llms-full_txt` has HALLUCINATED Raycast specifics (non-existent
-  `"silent"` command mode, fake argument `loadOptions`) — verify anything from it against the official
-  pages below (`jina read_url`) or `gh`, which are authoritative.
+  CAUTION: `/llmstxt/developers_raycast_llms-full_txt` HALLUCINATES Raycast specifics (fake `"silent"`
+  mode, fake arg `loadOptions`) — verify against the official pages below (`jina read_url`) or `gh`.
 - Discovery index (lists every doc page): `https://developers.raycast.com/llms.txt`.
 - Key pages under `https://developers.raycast.com/`: manifest `information/manifest`; Form
   `api-reference/user-interface/form`; selection & frontmost app `api-reference/environment`;
   browser `api-reference/browser-extension`; clipboard `api-reference/clipboard`; HUD & Toast
   `api-reference/feedback/hud` + `.../toast`; preferences `api-reference/preferences`; lifecycle &
-  `no-view` `information/lifecycle`; arguments `information/lifecycle/arguments`; publishing
-  `basics/prepare-an-extension-for-store`.
+  `no-view` `information/lifecycle`; arguments `information/lifecycle/arguments`.
 
 ## Before finishing
 
 - Run and pass: `make check` (lint + test + build).
-- Manually verify in Raycast via `npm run dev` — behavior depends on the Raycast runtime and
-  cannot be fully covered by unit tests.
+- Manually verify in Raycast via `npm run dev` — runtime behavior isn't covered by unit tests.
 
 ## Keeping this file current
 
-- Treat this file as living: when you discover a durable, load-bearing fact about THIS project (a
-  build/lint requirement, an API gotcha, a structural rule) that would prevent a future mistake,
-  update the relevant section in the same session — after verifying it via Docs & fast lookup.
-- Stay lean: keep the file under 200 lines. Before adding a line, apply "would removing this cause
-  a mistake?" — if not, don't add it. When you touch a section, prune lines that went stale or
-  became obvious. Growth without pruning is the main failure mode (a bloated file gets ignored).
-- Do NOT put here: dependency versions, ephemeral state, or one-off session context. Session-scoped
-  learnings and discovered commands belong in Claude Code auto-memory, not this file.
+- Treat this file as living: on discovering a durable, load-bearing fact (build/lint requirement,
+  API gotcha, structural rule) that prevents a future mistake, update the section the same session.
+- Stay lean (under 200 lines): before adding a line ask "would removing this cause a mistake?"; prune
+  stale/obvious lines when you touch a section. Growth without pruning is the main failure mode.
+- Do NOT put here: dependency versions, ephemeral state, one-off context — use Claude Code auto-memory.

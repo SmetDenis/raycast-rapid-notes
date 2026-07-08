@@ -27,7 +27,7 @@ function oneline(s: string): string {
  * Build the placeholder variables for a template render. The capture trio (`content`, `selected`,
  * `clipboard`) each has a raw form (trimmed, "" when empty), a `_f` form (a labeled line ending in
  * a newline — except `content_f`, a four-backtick `text` fence that wraps content VERBATIM so
- * pasted triple-backtick blocks can't break out), and a `_oneline` form (whitespace collapsed).
+ * pasted triple-backtick blocks can't break out), and a `_inline` form (whitespace collapsed).
  * `{extra}`/`{project}` are inputs; `{page}` is an adaptive link and `{link}` a fixed-anchor one;
  * `{tags}` is bare (for YAML) while `{tags_f}` prefixes each tag with `#`.
  */
@@ -68,10 +68,10 @@ export function buildTemplateVars({
     content: contentT,
     selected: selectedT,
     clipboard: clipboardT,
-    // capture trio — oneline
-    content_oneline: oneline(content),
-    selected_oneline: oneline(selected),
-    clipboard_oneline: oneline(clipboard),
+    // capture trio — inline
+    content_inline: oneline(content),
+    selected_inline: oneline(selected),
+    clipboard_inline: oneline(clipboard),
     // capture trio — formatted (content_f is a fence, not a label)
     content_f: contentT ? `\`\`\`\`text\n${content}\n\`\`\`\`\n` : "",
     selected_f: selectedT ? `Selected: ${selectedT}\n` : "",

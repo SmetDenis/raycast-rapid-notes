@@ -6,7 +6,7 @@ import { uniqueFilename } from "./lib/filename";
 import { upsertUpdatedField } from "./lib/frontmatter";
 import { applyAppend, buildCreateFile, isEmptyCapture } from "./lib/note";
 import { parseTags } from "./lib/tags";
-import { renderTemplate } from "./lib/template";
+import { renderTemplateOrDefault, type TemplateFn } from "./lib/templates";
 import { buildTemplateVars } from "./lib/vars";
 import {
   fileExists,
@@ -46,7 +46,12 @@ export interface CommandArgs {
  */
 export async function runSilentAppend(
   args: CommandArgs,
-  config: { file: string; heading: string; template: string },
+  config: {
+    file: string;
+    heading: string;
+    templatePref: string | undefined;
+    defaultTemplate: TemplateFn;
+  },
   prefs: AppendPrefs,
   label: string,
 ): Promise<void> {
@@ -71,8 +76,9 @@ export async function runSilentAppend(
   try {
     const now = new Date();
     const source = await readSource();
-    const line = renderTemplate(
-      config.template,
+    const line = renderTemplateOrDefault(
+      config.templatePref,
+      config.defaultTemplate,
       buildTemplateVars({
         content,
         extra: args.text ?? "",
@@ -108,7 +114,12 @@ export async function runSilentAppend(
  */
 export async function runSilentCreate(
   args: CommandArgs,
-  config: { directory: string; template: string; frontmatter: string },
+  config: {
+    directory: string;
+    templatePref: string | undefined;
+    defaultTemplate: TemplateFn;
+    frontmatter: string;
+  },
   prefs: CreatePrefs,
   label: string,
 ): Promise<void> {
@@ -153,7 +164,11 @@ export async function runSilentCreate(
       dateFallback: `${vars.date} ${vars.time}`,
       tags,
       sourceUrl: source.url,
-      body: renderTemplate(config.template, vars),
+      body: renderTemplateOrDefault(
+        config.templatePref,
+        config.defaultTemplate,
+        vars,
+      ),
     });
     const filename = uniqueFilename(
       formatDate(now, prefs.filenameDateFormat),

@@ -26,10 +26,10 @@ describe("buildTemplateVars", () => {
       content: "Selected text",
       selected: "Selected text",
       clipboard: "clip me",
-      // capture trio — oneline
-      content_oneline: "Selected text",
-      selected_oneline: "Selected text",
-      clipboard_oneline: "clip me",
+      // capture trio — inline
+      content_inline: "Selected text",
+      selected_inline: "Selected text",
+      clipboard_inline: "clip me",
       // capture trio — formatted
       content_f: "````text\n  Selected text  \n````\n",
       selected_f: "Selected: Selected text\n",
@@ -181,7 +181,7 @@ describe("buildTemplateVars", () => {
     expect(v.tags_f).toBe("");
   });
 
-  test("collapses whitespace to one space and trims for the _oneline trio", () => {
+  test("collapses whitespace to one space and trims for the _inline trio", () => {
     const v = buildTemplateVars({
       content: "a\n\nb  c",
       selected: "  s1\ts2 ",
@@ -193,9 +193,9 @@ describe("buildTemplateVars", () => {
       now: NOW,
       dateFormat: FMT,
     });
-    expect(v.content_oneline).toBe("a b c");
-    expect(v.selected_oneline).toBe("s1 s2");
-    expect(v.clipboard_oneline).toBe("line1 line2");
+    expect(v.content_inline).toBe("a b c");
+    expect(v.selected_inline).toBe("s1 s2");
+    expect(v.clipboard_inline).toBe("line1 line2");
   });
 
   test("labels selected_f/clipboard_f and collapses empty ones to ''", () => {
@@ -225,7 +225,7 @@ describe("buildTemplateVars", () => {
     });
     expect(empty.selected).toBe("");
     expect(empty.selected_f).toBe("");
-    expect(empty.selected_oneline).toBe("");
+    expect(empty.selected_inline).toBe("");
     expect(empty.clipboard).toBe("");
     expect(empty.clipboard_f).toBe("");
   });
