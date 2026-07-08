@@ -1,7 +1,6 @@
 import { describe, expect, test } from "vitest";
-import { DEFAULT_TEMPLATES, renderTemplateOrDefault } from "./templates";
-import { buildTemplateVars } from "./vars";
-import type { TemplateVars } from "./template";
+import { TEMPLATES } from "./templates";
+import { buildTemplateVars, type TemplateVars } from "./vars";
 
 // Fixed clock so {date}/{time} are deterministic: "Wed, 8 July 2026" / "14:30".
 const NOW = new Date("2026-07-08T14:30:00");
@@ -34,9 +33,9 @@ const BROWSER = {
 const TERMINAL = { url: "", title: "", app: "Terminal" };
 const EMPTY = { url: "", title: "", app: "" };
 
-describe("DEFAULT_TEMPLATES shape", () => {
+describe("TEMPLATES shape", () => {
   test("every default is a function returning a non-empty string", () => {
-    for (const [key, fn] of Object.entries(DEFAULT_TEMPLATES)) {
+    for (const [key, fn] of Object.entries(TEMPLATES)) {
       expect(fn, key).toBeTypeOf("function");
       const out = fn(vars());
       expect(out, key).toBeTypeOf("string");
@@ -47,17 +46,17 @@ describe("DEFAULT_TEMPLATES shape", () => {
 
 describe("checklist default", () => {
   test("browser: inline link + app, single spaces", () => {
-    expect(DEFAULT_TEMPLATES.checklist(vars(BROWSER))).toBe(
+    expect(TEMPLATES.checklist(vars(BROWSER))).toBe(
       "- [ ] **Wed, 8 July 2026 14:30** buy milk [link](https://example.com/a) (Safari)",
     );
   });
   test("non-browser: app only, NO double space, NO empty ()", () => {
-    expect(DEFAULT_TEMPLATES.checklist(vars(TERMINAL))).toBe(
+    expect(TEMPLATES.checklist(vars(TERMINAL))).toBe(
       "- [ ] **Wed, 8 July 2026 14:30** buy milk (Terminal)",
     );
   });
   test("empty source: clean, no trailing punctuation", () => {
-    expect(DEFAULT_TEMPLATES.checklist(vars(EMPTY))).toBe(
+    expect(TEMPLATES.checklist(vars(EMPTY))).toBe(
       "- [ ] **Wed, 8 July 2026 14:30** buy milk",
     );
   });
@@ -65,7 +64,7 @@ describe("checklist default", () => {
 
 describe("appendNote default", () => {
   test("browser + extra: metadata lines, comment=extra, selection quoted in fence", () => {
-    const out = DEFAULT_TEMPLATES.appendNote(
+    const out = TEMPLATES.appendNote(
       vars({ ...BROWSER, extra: "important", selected: "line one\nline two" }),
     );
     expect(out).toContain("From app: Safari\n");
@@ -76,22 +75,20 @@ describe("appendNote default", () => {
     expect(out).not.toContain("- -"); // the old broken-bullet artifact
   });
   test("no extra: callout falls back to ?", () => {
-    const out = DEFAULT_TEMPLATES.appendNote(
+    const out = TEMPLATES.appendNote(
       vars({ ...TERMINAL, extra: "", selected: "quote" }),
     );
     expect(out).toContain("> [!comment]\n> ?\n");
   });
   test("empty source: no metadata, no broken bullet", () => {
-    const out = DEFAULT_TEMPLATES.appendNote(
-      vars({ ...EMPTY, selected: "quote" }),
-    );
+    const out = TEMPLATES.appendNote(vars({ ...EMPTY, selected: "quote" }));
     expect(out.startsWith("- **Wed, 8 July 2026 14:30**\n")).toBe(true);
     expect(out).not.toContain("From app:");
     expect(out).not.toContain("Page:");
     expect(out).not.toContain("- -");
   });
   test("no selection/clipboard: body fence is omitted entirely", () => {
-    const out = DEFAULT_TEMPLATES.appendNote(
+    const out = TEMPLATES.appendNote(
       vars({
         ...TERMINAL,
         extra: "just a thought",
@@ -105,57 +102,29 @@ describe("appendNote default", () => {
 
 describe("task default", () => {
   test("body is the content verbatim", () => {
-    expect(DEFAULT_TEMPLATES.task(vars())).toBe("buy milk");
+    expect(TEMPLATES.task(vars())).toBe("buy milk");
   });
 });
 
 describe("note / formCreate defaults", () => {
   test("content + page reference when page present", () => {
-    const out = DEFAULT_TEMPLATES.note(vars(BROWSER));
+    const out = TEMPLATES.note(vars(BROWSER));
     expect(out).toBe(
       "buy milk\n\nPage: [Great Article](https://example.com/a)\n",
     );
   });
   test("formCreate matches note", () => {
-    expect(DEFAULT_TEMPLATES.formCreate(vars(BROWSER))).toBe(
-      DEFAULT_TEMPLATES.note(vars(BROWSER)),
+    expect(TEMPLATES.formCreate(vars(BROWSER))).toBe(
+      TEMPLATES.note(vars(BROWSER)),
     );
   });
 });
 
 describe("formAppend default", () => {
   test("footer has date+time only, NO app (dropped: Form may resolve app=Raycast)", () => {
-    const out = DEFAULT_TEMPLATES.formAppend(vars({ app: "Raycast" }));
+    const out = TEMPLATES.formAppend(vars({ app: "Raycast" }));
     expect(out).toBe("buy milk\n\n_Wed, 8 July 2026 14:30_");
     expect(out).not.toContain("Raycast");
     expect(out).not.toContain("·");
-  });
-});
-
-describe("renderTemplateOrDefault", () => {
-  test("non-empty pref is rendered as a string template", () => {
-    expect(
-      renderTemplateOrDefault(
-        "custom {content}!",
-        DEFAULT_TEMPLATES.task,
-        vars(),
-      ),
-    ).toBe("custom buy milk!");
-  });
-  test("undefined / empty / whitespace pref falls back to the default function", () => {
-    expect(
-      renderTemplateOrDefault(undefined, DEFAULT_TEMPLATES.task, vars()),
-    ).toBe("buy milk");
-    expect(renderTemplateOrDefault("", DEFAULT_TEMPLATES.task, vars())).toBe(
-      "buy milk",
-    );
-    expect(
-      renderTemplateOrDefault("  \n\t ", DEFAULT_TEMPLATES.task, vars()),
-    ).toBe("buy milk");
-  });
-  test("pref path interprets backslash escapes; default path uses real newlines", () => {
-    expect(
-      renderTemplateOrDefault("a\\nb", DEFAULT_TEMPLATES.task, vars()),
-    ).toBe("a\nb");
   });
 });

@@ -1,6 +1,6 @@
 import { LaunchProps, getPreferenceValues } from "@raycast/api";
 import { runSilentCreate } from "./capture";
-import { DEFAULT_TEMPLATES } from "./lib/templates";
+import { TEMPLATES } from "./lib/templates";
 
 export default async function NewTaskCommand(
   props: LaunchProps<{ arguments: Arguments.NewTask }>,
@@ -10,8 +10,7 @@ export default async function NewTaskCommand(
     props.arguments,
     {
       directory: prefs.taskDirectory ?? "",
-      templatePref: prefs.taskTemplate,
-      defaultTemplate: DEFAULT_TEMPLATES.task,
+      template: TEMPLATES.task,
       frontmatter: prefs.taskFrontmatter,
     },
     prefs,

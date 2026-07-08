@@ -1,5 +1,7 @@
 import { formatDate } from "./datetime";
-import type { TemplateVars } from "./template";
+
+/** The variable bag the template functions in `templates.ts` draw from. */
+export type TemplateVars = Record<string, string>;
 
 export interface VarsInput {
   /** Caller-composed primary content (instant = joinParts of the pieces; Form = the Content field). */

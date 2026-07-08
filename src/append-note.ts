@@ -1,6 +1,6 @@
 import { LaunchProps, getPreferenceValues } from "@raycast/api";
 import { runSilentAppend } from "./capture";
-import { DEFAULT_TEMPLATES } from "./lib/templates";
+import { TEMPLATES } from "./lib/templates";
 
 export default async function AppendNoteCommand(
   props: LaunchProps<{ arguments: Arguments.AppendNote }>,
@@ -11,8 +11,7 @@ export default async function AppendNoteCommand(
     {
       file: prefs.appendNoteFile ?? "",
       heading: prefs.appendNoteHeading,
-      templatePref: prefs.appendNoteTemplate,
-      defaultTemplate: DEFAULT_TEMPLATES.appendNote,
+      template: TEMPLATES.appendNote,
     },
     prefs,
     "append note",

@@ -3,7 +3,8 @@
 Raycast extension (TypeScript/React) for fast note capture. Four instant (`no-view`) commands —
 append a checklist item or text block under a heading, or create a new timestamped task/note file
 with YAML frontmatter — plus a STANDALONE editable Form (`rapid-note`) with its own append/create
-targets. Template-driven. Local/personal for now; may be published to the Raycast Store later.
+targets. Output formats live in code (`lib/templates.ts`), not preferences. Local/personal for now;
+may be published to the Raycast Store later.
 
 ## Critical
 
@@ -44,8 +45,8 @@ publish flow depend on them; do not reimplement logic in the Makefile or the two
     mode dropdown `{append|create}` appends under a heading in `appendFile` or creates in `createDirectory`; no arguments.
   - `src/capture.ts` — non-command adapter helper (`@raycast/api`): `runSilentAppend`/`runSilentCreate`
     shared by the four `no-view` commands. Not in `lib`, not unit-tested — verify via `make dev`.
-- `src/lib/` — pure core, no `@raycast/api`: placeholder rendering + default templates as
-  vars-functions (`templates.ts`), date + timestamp-filename formatting, Markdown append (to file end
+- `src/lib/` — pure core, no `@raycast/api`: output templates as functions of a vars object
+  (`templates.ts` + `vars.ts`), date + timestamp-filename formatting, Markdown append (to file end
   or under a configurable heading), new-note + YAML frontmatter composition (escaping-safe), tag
   parsing, browser-app detection.
 - `src/shared.ts` — the non-command adapter (`@raycast/api` + `node:fs`): selection/clipboard and
@@ -69,39 +70,37 @@ publish flow depend on them; do not reimplement logic in the Makefile or the two
 
 - Per-target prefs are COMMAND-scope (each on that command's OWN settings screen; a command reads only
   its own command-scope prefs + inherited extension-scope, never another command's — the Form and the
-  instant commands do NOT share config). NO global template — each target owns its file/dir + template
-  (+ heading for append, frontmatter for create): `checklist*`/`appendNote*` (append commands),
-  `task*`/`note*` + `defaultTags` (create commands), and the Form's `append{File,Heading,Template}` +
-  `create{Directory,Template,Frontmatter}` + `defaultTags` (own duplicated paths, by design; exact keys
+  instant commands do NOT share config). Each target owns its file/dir (+ heading for append,
+  frontmatter for create): `checklist*`/`appendNote*` (append commands), `task*`/`note*` +
+  `defaultTags` (create commands), and the Form's `append{File,Heading}` +
+  `create{Directory,Frontmatter}` + `defaultTags` (own duplicated paths, by design; exact keys
   in `package.json`). Only `dateFormat`, `filenameDateFormat`, `mergeSeparator` stay extension-scope;
   `useClipboard` is command-scope on all 5. `defaultTags` is the same key in 3 scopes (task, note, form) — namespaced per command.
-- Template placeholders (all built in `lib/vars.buildTemplateVars`; FULL TABLE in README): capture
-  TRIO (`content`/`selected`/`clipboard`) each has a RAW form (trimmed, `""` when empty), an `_f` twin
-  (labeled line ending in `\n`, self-collapsing — except `content_f`, a four-backtick `text` fence
-  wrapping content VERBATIM so pasted backticks can't break out), and an `_inline` twin (`\s+`→space).
-  Others: `{extra}`/`{project}`, source `{url}`/`{title}`/`{app}`/`{page}`/`{link}` (each with an `_f`
-  twin); `{tags}` bare (feeds YAML) vs `{tags_f}` `#`-prefixed; `{date}` (`EEE, d MMMM yyyy`)/`{time}`
-  (`HH:mm`)/`{datetime}` (the `dateFormat` pref). `{page}` adapts `[title](url)`/`<url>`/title/`""`.
-  Escapes `\n`/`\t`/`\\` interpreted in the TEMPLATE only; escapes inside values stay literal. Trim
-  policy: capture VERBATIM; raw forms trimmed, `{content_f}` as-is, emptiness on trimmed value;
-  rendered output NEVER trimmed. `{project}` reaches APPEND only if the template references it (defaults
-  don't → dropped, by design); in CREATE it is structural (title prefix + `project:` field).
-- Defaults are FUNCTIONS `(vars) => string` in `lib/templates.DEFAULT_TEMPLATES` (one per pref), NOT
-  strings — a default uses real JS (conditionals, fallbacks, self-collapsing inline punctuation) the
-  `{key}` engine can't express, rendering cleanly across every capture branch with NO new narrow vars.
-  `renderTemplateOrDefault(pref, defaultFn, vars)`: a non-blank pref string → `renderTemplate` (`{key}`
-  substitution), else `defaultFn(vars)`. Resolve happens INSIDE the adapter (`capture.ts` / the Form's
-  `handleSubmit`) where `vars` exist — the four command files pass `pref`+`defaultFn`, NOT a pre-resolved
-  string. ASYMMETRY BY DESIGN: a default (function) can output what a user pref (string) cannot; custom
-  strings stay simpler. `{app}` is rendered 3 ways, chosen by line shape: inline `(app)` (checklist),
-  `From app:` block-line (appendNote), DROPPED (formAppend — the focus-stealing Form may resolve `{app}`
-  to "Raycast"; restore only if confirmed otherwise). Current defaults: checklist dated line + inline
-  `[link]`/`(app)`; appendNote dated block + `{app_f}{page_f}` + `> [!comment]` slot (`{extra}` or `?`)
-  + selection fence + `---`; task `{content}`; note/formCreate `{content}\n\n{page_f}`; formAppend
-  `{content}` + dated footer (no app).
-- `{content}` = `extra + selection + clipboard` (present pieces only, `mergeSeparator` between) via
+- Template vars (the palette the template functions draw from; all built in
+  `lib/vars.buildTemplateVars`, listed in README): capture TRIO (`content`/`selected`/`clipboard`) each
+  has a RAW form (trimmed, `""` when empty), an `_f` twin (labeled line ending in `\n`, self-collapsing
+  — except `content_f`, a four-backtick `text` fence wrapping content VERBATIM so pasted backticks can't
+  break out), and an `_inline` twin (`\s+`→space). Others: `extra`/`project`, source
+  `url`/`title`/`app`/`page`/`link` (each with an `_f` twin); `tags` bare (feeds YAML) vs `tags_f`
+  `#`-prefixed; `date` (`EEE, d MMMM yyyy`)/`time` (`HH:mm`)/`datetime` (the `dateFormat` pref). `page`
+  adapts `[title](url)`/`<url>`/title/`""`. Trim policy: capture VERBATIM; raw forms trimmed,
+  `content_f` as-is, emptiness on trimmed value; rendered output NEVER trimmed. `project` reaches APPEND
+  only if that template function references it (defaults don't → dropped, by design); in CREATE it is
+  structural (title prefix + `project:` field).
+- Templates ARE FUNCTIONS `(vars) => string` in `lib/templates.TEMPLATES` (one per output target: the
+  four instant commands + the Form's two modes), NOT strings and NOT a preference — editing a function
+  (then `make dev`) is the only way to change output. Real JS (conditionals, fallbacks, self-collapsing
+  punctuation) renders cleanly across every capture branch with NO narrow one-shot vars. The four
+  command files pass the function (`TEMPLATES.checklist` …) to `capture.ts`, which calls it with the
+  built `vars`; the Form calls `TEMPLATES.formAppend`/`formCreate` in `handleSubmit`. `app` is rendered
+  3 ways, chosen by line shape: inline `(app)` (checklist), `From app:` block-line (appendNote), DROPPED
+  (formAppend — the focus-stealing Form may resolve `app` to "Raycast"; restore only if confirmed
+  otherwise). Current templates: checklist dated line + inline `link`/`(app)`; appendNote dated block +
+  `app_f`/`page_f` lines + `> [!comment]` slot (`extra` or `?`) + selection fence + `---`; task =
+  `content`; note/formCreate = `content` + `page_f`; formAppend = `content` + dated footer (no app).
+- `content` = `extra + selection + clipboard` (present pieces only, `mergeSeparator` between) via
   `lib/content.joinParts` for the four instant commands; the Form uses its Content field verbatim
-  (`{selected}` == `{content}` there). Clipboard participates only when `useClipboard` is ON.
+  (`selected` == `content` there). Clipboard participates only when `useClipboard` is ON.
 - Create (New Task / New Note) writes YAML frontmatter — generated STRUCTURALLY in `lib`
   (`buildCreateFile`), never from the template — then the body template. Field order: configurable
   static fields from the `*Frontmatter` pref (`parseExtraFrontmatter`, `key: value; key2: value2`;
@@ -114,17 +113,17 @@ publish flow depend on them; do not reimplement logic in the Makefile or the two
   (same `dateFormat` as `created`) via `upsertUpdatedField`; files without frontmatter are left
   untouched (no block injected). Create ALWAYS writes a fresh file (never merges), so it has
   no `updated`.
-- `dateFormat` (default `yyyy-MM-dd'T'HH:mm:ss`) → `created` + `{datetime}`; `filenameDateFormat`
+- `dateFormat` (default `yyyy-MM-dd'T'HH:mm:ss`) → `created`/`updated` + the `datetime` var; `filenameDateFormat`
   (default `yyyy-MM-dd-HHmmss`) → create filenames. Raycast prefs have no textarea — comma/semicolon
   lists live in single-line `textfield`s.
 - Default tags: a comma-separated `textfield` (task/note/form scopes). Create uses it — the Form
   prefills its Tags field (replace, not merge), the Silent create commands read it directly — feeding
-  both the `tags:` frontmatter and `{tags}`/`{tags_f}`. Silent APPEND has no tag source → `{tags}` empty.
+  both the `tags:` frontmatter and the `tags`/`tags_f` vars. Silent APPEND has no tag source → `tags` empty.
 - Arguments (optional single-line, via `LaunchProps`; the four instant commands ONLY — the Form takes
-  NONE): `text` is `{extra}` and joins the `{content}` merge via `lib/content.joinParts` (present
+  NONE): `text` is the `extra` var and joins the `content` merge via `lib/content.joinParts` (present
   pieces only, separator between adjacent kept pieces, capture verbatim); `mergeSeparator` →
   `separatorGlyph`: `semicolon` (default `"; "`) / `space` / `newline`. `project` (all four) feeds
-  `{project}`; the create commands also take a `title` argument (3-arg limit).
+  the `project` var; the create commands also take a `title` argument (3-arg limit).
 
 ## Gotchas
 

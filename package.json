@@ -36,17 +36,10 @@
           "default": "# Draft items"
         },
         {
-          "name": "checklistTemplate",
-          "title": "Template",
-          "description": "Body/line template. Leave empty for the built-in default. Placeholders: {content} {selected} {clipboard} {extra} {project} {url} {title} {app} {page} {link} {tags} {date} {time} {datetime}; the capture trio also has {*_f} and {*_inline} forms. Full table in README.",
-          "type": "textfield",
-          "required": false
-        },
-        {
           "name": "useClipboard",
           "title": "Clipboard",
           "label": "Merge the clipboard into the capture",
-          "description": "When on, the clipboard is read, appended to {content}, and available as {clipboard} / {clipboard_f} / {clipboard_inline}. When off, the clipboard is never read.",
+          "description": "When on, the clipboard is read and merged into the captured content. When off, the clipboard is never read.",
           "type": "checkbox",
           "required": false,
           "default": false
@@ -89,17 +82,10 @@
           "default": "# Draft Notes"
         },
         {
-          "name": "appendNoteTemplate",
-          "title": "Template",
-          "description": "Body/line template. Leave empty for the built-in default. Placeholders: {content} {selected} {clipboard} {extra} {project} {url} {title} {app} {page} {link} {tags} {date} {time} {datetime}; the capture trio also has {*_f} and {*_inline} forms. Full table in README.",
-          "type": "textfield",
-          "required": false
-        },
-        {
           "name": "useClipboard",
           "title": "Clipboard",
           "label": "Merge the clipboard into the capture",
-          "description": "When on, the clipboard is read, appended to {content}, and available as {clipboard} / {clipboard_f} / {clipboard_inline}. When off, the clipboard is never read.",
+          "description": "When on, the clipboard is read and merged into the captured content. When off, the clipboard is never read.",
           "type": "checkbox",
           "required": false,
           "default": false
@@ -134,13 +120,6 @@
           "required": true
         },
         {
-          "name": "taskTemplate",
-          "title": "Body Template",
-          "description": "Body/line template. Leave empty for the built-in default. Placeholders: {content} {selected} {clipboard} {extra} {project} {url} {title} {app} {page} {link} {tags} {date} {time} {datetime}; the capture trio also has {*_f} and {*_inline} forms. Full table in README.",
-          "type": "textfield",
-          "required": false
-        },
-        {
           "name": "taskFrontmatter",
           "title": "Frontmatter",
           "description": "Extra YAML frontmatter as 'key: value; key2: value2'. Reserved keys (created, title, project, tags, source_url, updated) are set automatically and rejected here.",
@@ -151,7 +130,7 @@
         {
           "name": "defaultTags",
           "title": "Default Tags",
-          "description": "Comma-separated tags written to new task files (and available as {tags}).",
+          "description": "Comma-separated tags written to new task files.",
           "type": "textfield",
           "required": false,
           "default": ""
@@ -160,7 +139,7 @@
           "name": "useClipboard",
           "title": "Clipboard",
           "label": "Merge the clipboard into the capture",
-          "description": "When on, the clipboard is read, appended to {content}, and available as {clipboard} / {clipboard_f} / {clipboard_inline}. When off, the clipboard is never read.",
+          "description": "When on, the clipboard is read and merged into the captured content. When off, the clipboard is never read.",
           "type": "checkbox",
           "required": false,
           "default": false
@@ -201,13 +180,6 @@
           "required": true
         },
         {
-          "name": "noteTemplate",
-          "title": "Body Template",
-          "description": "Body/line template. Leave empty for the built-in default. Placeholders: {content} {selected} {clipboard} {extra} {project} {url} {title} {app} {page} {link} {tags} {date} {time} {datetime}; the capture trio also has {*_f} and {*_inline} forms. Full table in README.",
-          "type": "textfield",
-          "required": false
-        },
-        {
           "name": "noteFrontmatter",
           "title": "Frontmatter",
           "description": "Extra YAML frontmatter as 'key: value; key2: value2'. Reserved keys (created, title, project, tags, source_url, updated) are set automatically and rejected here.",
@@ -218,7 +190,7 @@
         {
           "name": "defaultTags",
           "title": "Default Tags",
-          "description": "Comma-separated tags written to new note files (and available as {tags}).",
+          "description": "Comma-separated tags written to new note files.",
           "type": "textfield",
           "required": false,
           "default": ""
@@ -227,7 +199,7 @@
           "name": "useClipboard",
           "title": "Clipboard",
           "label": "Merge the clipboard into the capture",
-          "description": "When on, the clipboard is read, appended to {content}, and available as {clipboard} / {clipboard_f} / {clipboard_inline}. When off, the clipboard is never read.",
+          "description": "When on, the clipboard is read and merged into the captured content. When off, the clipboard is never read.",
           "type": "checkbox",
           "required": false,
           "default": false
@@ -276,24 +248,10 @@
           "default": ""
         },
         {
-          "name": "appendTemplate",
-          "title": "Append: Template",
-          "description": "Body/line template. Leave empty for the built-in default. Placeholders: {content} {selected} {clipboard} {extra} {project} {url} {title} {app} {page} {link} {tags} {date} {time} {datetime}; the capture trio also has {*_f} and {*_inline} forms. Full table in README.",
-          "type": "textfield",
-          "required": false
-        },
-        {
           "name": "createDirectory",
           "title": "Create: Directory",
           "description": "Folder where the form creates a new file when 'Create' is selected.",
           "type": "directory",
-          "required": false
-        },
-        {
-          "name": "createTemplate",
-          "title": "Create: Body Template",
-          "description": "Body/line template. Leave empty for the built-in default. Placeholders: {content} {selected} {clipboard} {extra} {project} {url} {title} {app} {page} {link} {tags} {date} {time} {datetime}; the capture trio also has {*_f} and {*_inline} forms. Full table in README.",
-          "type": "textfield",
           "required": false
         },
         {
@@ -316,7 +274,7 @@
           "name": "useClipboard",
           "title": "Clipboard",
           "label": "Merge the clipboard into the capture",
-          "description": "When on, the clipboard is read, appended to {content}, and available as {clipboard} / {clipboard_f} / {clipboard_inline}. When off, the clipboard is never read.",
+          "description": "When on, the clipboard is read and merged into the captured content. When off, the clipboard is never read.",
           "type": "checkbox",
           "required": false,
           "default": false
@@ -328,7 +286,7 @@
     {
       "name": "dateFormat",
       "title": "Date Format",
-      "description": "date-fns format for {datetime} and the frontmatter created field.",
+      "description": "date-fns format for the frontmatter created and updated fields.",
       "type": "textfield",
       "required": false,
       "default": "yyyy-MM-dd'T'HH:mm:ss"
@@ -344,7 +302,7 @@
     {
       "name": "mergeSeparator",
       "title": "Merge Separator",
-      "description": "How the typed argument, selection, and clipboard are joined in {content} when more than one is present.",
+      "description": "How the typed argument, selection, and clipboard are joined into the captured content when more than one is present.",
       "type": "dropdown",
       "required": false,
       "default": "semicolon",

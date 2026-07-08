@@ -16,7 +16,7 @@ import { uniqueFilename } from "./lib/filename";
 import { upsertUpdatedField } from "./lib/frontmatter";
 import { applyAppend, buildCreateFile } from "./lib/note";
 import { parseTags } from "./lib/tags";
-import { DEFAULT_TEMPLATES, renderTemplateOrDefault } from "./lib/templates";
+import { TEMPLATES } from "./lib/templates";
 import { buildTemplateVars } from "./lib/vars";
 import {
   fileExists,
@@ -116,11 +116,7 @@ export default function RapidNoteCommand(
           dateFallback: `${vars.date} ${vars.time}`,
           tags: parsedTags,
           sourceUrl: values.url.trim(),
-          body: renderTemplateOrDefault(
-            prefs.createTemplate,
-            DEFAULT_TEMPLATES.formCreate,
-            vars,
-          ),
+          body: TEMPLATES.formCreate(vars),
         });
         const filename = uniqueFilename(
           formatDate(now, prefs.filenameDateFormat),
@@ -144,11 +140,7 @@ export default function RapidNoteCommand(
         const appended = applyAppend(
           readFile(target),
           prefs.appendHeading,
-          renderTemplateOrDefault(
-            prefs.appendTemplate,
-            DEFAULT_TEMPLATES.formAppend,
-            vars,
-          ),
+          TEMPLATES.formAppend(vars),
         );
         writeFile(
           target,
