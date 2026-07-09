@@ -45,20 +45,45 @@ describe("TEMPLATES shape", () => {
 });
 
 describe("checklist default", () => {
-  test("browser: inline link + app, single spaces", () => {
+  test("browser: time + colon, inline link + app, NO date in the line", () => {
     expect(TEMPLATES.checklist(vars(BROWSER))).toBe(
-      "- [ ] **Wed, 8 July 2026 14:30** buy milk [link](https://example.com/a) (Safari)",
+      "- [ ] **14:30**: buy milk [link](https://example.com/a) (Safari)",
     );
   });
   test("non-browser: app only, NO double space, NO empty ()", () => {
     expect(TEMPLATES.checklist(vars(TERMINAL))).toBe(
-      "- [ ] **Wed, 8 July 2026 14:30** buy milk (Terminal)",
+      "- [ ] **14:30**: buy milk (Terminal)",
     );
   });
   test("empty source: clean, no trailing punctuation", () => {
-    expect(TEMPLATES.checklist(vars(EMPTY))).toBe(
-      "- [ ] **Wed, 8 July 2026 14:30** buy milk",
+    expect(TEMPLATES.checklist(vars(EMPTY))).toBe("- [ ] **14:30**: buy milk");
+  });
+  test("project: an [!!info:] code-span prefix before the content", () => {
+    expect(TEMPLATES.checklist(vars({ ...EMPTY, project: "Work" }))).toBe(
+      "- [ ] **14:30**: `[!!info:Work]` buy milk",
     );
+  });
+  test("extra: rendered first, in backticks, joined by the merge separator", () => {
+    expect(TEMPLATES.checklist(vars({ ...EMPTY, extra: "note" }))).toBe(
+      "- [ ] **14:30**: `note`; buy milk",
+    );
+  });
+  test("project + extra: prefix, then backticked extra, then content", () => {
+    expect(
+      TEMPLATES.checklist(vars({ ...EMPTY, project: "Work", extra: "note" })),
+    ).toBe("- [ ] **14:30**: `[!!info:Work]` `note`; buy milk");
+  });
+  test("clipboard joins the body after the selection", () => {
+    expect(
+      TEMPLATES.checklist(
+        vars({ ...EMPTY, selected: "sel", clipboard: "clip" }),
+      ),
+    ).toBe("- [ ] **14:30**: sel; clip");
+  });
+  test("multi-line content: continuations indented 4 spaces, app on last line", () => {
+    expect(
+      TEMPLATES.checklist(vars({ ...TERMINAL, selected: "line1\nline2" })),
+    ).toBe("- [ ] **14:30**: line1\n    line2 (Terminal)");
   });
 });
 

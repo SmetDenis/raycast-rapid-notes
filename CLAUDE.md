@@ -80,24 +80,23 @@ publish flow depend on them; do not reimplement logic in the Makefile or the two
   `lib/vars.buildTemplateVars`, listed in README): capture TRIO (`content`/`selected`/`clipboard`) each
   has a RAW form (trimmed, `""` when empty), an `_f` twin (labeled line ending in `\n`, self-collapsing
   — except `content_f`, a four-backtick `text` fence wrapping content VERBATIM so pasted backticks can't
-  break out), and an `_inline` twin (`\s+`→space). Others: `extra`/`project`, source
-  `url`/`title`/`app`/`page`/`link` (each with an `_f` twin); `tags` bare (feeds YAML) vs `tags_f`
-  `#`-prefixed; `date` (`EEE, d MMMM yyyy`)/`time` (`HH:mm`)/`datetime` (the `dateFormat` pref). `page`
-  adapts `[title](url)`/`<url>`/title/`""`. Trim policy: capture VERBATIM; raw forms trimmed,
-  `content_f` as-is, emptiness on trimmed value; rendered output NEVER trimmed. `project` reaches APPEND
-  only if that template function references it (defaults don't → dropped, by design); in CREATE it is
-  structural (title prefix + `project:` field).
-- Templates ARE FUNCTIONS `(vars) => string` in `lib/templates.TEMPLATES` (one per output target: the
-  four instant commands + the Form's two modes), NOT strings and NOT a preference — editing a function
-  (then `make dev`) is the only way to change output. Real JS (conditionals, fallbacks, self-collapsing
-  punctuation) renders cleanly across every capture branch with NO narrow one-shot vars. The four
-  command files pass the function (`TEMPLATES.checklist` …) to `capture.ts`, which calls it with the
-  built `vars`; the Form calls `TEMPLATES.formAppend`/`formCreate` in `handleSubmit`. `app` is rendered
-  3 ways, chosen by line shape: inline `(app)` (checklist), `From app:` block-line (appendNote), DROPPED
-  (formAppend — the focus-stealing Form may resolve `app` to "Raycast"; restore only if confirmed
-  otherwise). Current templates: checklist dated line + inline `link`/`(app)`; appendNote dated block +
-  `app_f`/`page_f` lines + `> [!comment]` slot (`extra` or `?`) + selection fence + `---`; task =
-  `content`; note/formCreate = `content` + `page_f`; formAppend = `content` + dated footer (no app).
+  break out), and an `_inline` twin (`\s+`→space). Others: `extra` (+ `extra_code` twin = `extra` in an
+  inline-code span)/`project`, source `url`/`title`/`app`/`page`/`link` (each with an `_f` twin); `tags`
+  bare (feeds YAML) vs `tags_f` `#`-prefixed; `sep` = `mergeSeparator` glyph; `date` (`EEE, d MMMM
+  yyyy`)/`time` (`HH:mm`)/`datetime` (the `dateFormat` pref). `page` adapts
+  `[title](url)`/`<url>`/title/`""`. Trim policy: capture VERBATIM; raw
+  forms trimmed, `content_f` as-is, emptiness on trimmed value; rendered output NEVER trimmed. `project`
+  reaches APPEND only if that template references it (checklist DOES, via the `[!!info:{project}]`
+  prefix; appendNote doesn't → dropped); in CREATE it is structural (title prefix + `project:` field).
+- Templates ARE FUNCTIONS `(vars) => string` in `lib/templates.TEMPLATES`, NOT strings/prefs — editing a
+  function (then `make dev`) is the only way to change output; real JS renders cleanly across every
+  capture branch. Command files pass the fn to `capture.ts`; the Form calls `formAppend`/`formCreate` in
+  `handleSubmit`. Current templates: checklist = `**HH:mm**:` (date is in the auto-grouped `## _date_`
+  heading) + optional `[!!info:{project}]` prefix + body (`extra_code`, `selected`, `clipboard` via
+  `sep`) + inline `link`/`(app)`, continuations 4-space indented (`indentContinuation`); appendNote =
+  dated block + `app_f`/`page_f` + `> [!comment]` (`extra`|`?`) + fence + `---`; task = `content`;
+  note/formCreate = `content` + `page_f`; formAppend = `content` + dated footer (NO app — Form may
+  resolve `app`="Raycast").
 - `content` = `extra + selection + clipboard` (present pieces only, `mergeSeparator` between) via
   `lib/content.joinParts` for the four instant commands; the Form uses its Content field verbatim
   (`selected` == `content` there). Clipboard participates only when `useClipboard` is ON.
@@ -149,6 +148,10 @@ publish flow depend on them; do not reimplement logic in the Makefile or the two
   `lib/markdown.appendUnderHeading(content, level, text, line)` matches at the EXACT level and
   case-insensitively, and the section ends at the next heading of ANY level (a nested sub-heading
   closes it — it is NOT kept inside).
+- Append-CHECKLIST does NOT reuse `appendUnderHeading` (append-note does — leave it alone): it groups by
+  day via `lib/note.applyGroupedAppend` → `appendUnderDateGroup`, which finds/creates a `## _{date}_`
+  sub-heading (level parent+1, clamped H6; parent@H6 unsupported). DISTINCT boundary: parent section ends
+  at the next heading of level ≤ parent (date groups don't close it). Null pref ⇒ `# _{date}_`; dup ⇒ first.
 - YAML frontmatter (create) is the other bug-prone piece — two layers: (1) structural fields
   (`title`/`project`/`source_url`/tags, `:`/`#`/quotes/spaces) escape via `yamlScalar`; (2) the user's
   `*Frontmatter` pref (`parseExtraFrontmatter`) must FAIL LOUDLY (throw → HUD/Toast + abort, never

@@ -4,7 +4,12 @@ import { joinParts, separatorGlyph } from "./lib/content";
 import { formatDate } from "./lib/datetime";
 import { uniqueFilename } from "./lib/filename";
 import { upsertUpdatedField } from "./lib/frontmatter";
-import { applyAppend, buildCreateFile, isEmptyCapture } from "./lib/note";
+import {
+  applyAppend,
+  applyGroupedAppend,
+  buildCreateFile,
+  isEmptyCapture,
+} from "./lib/note";
 import { parseTags } from "./lib/tags";
 import { type TemplateFn } from "./lib/templates";
 import { buildTemplateVars } from "./lib/vars";
@@ -50,6 +55,8 @@ export async function runSilentAppend(
     file: string;
     heading: string;
     template: TemplateFn;
+    /** Append-checklist: group items under an auto-created `## _date_` sub-heading. */
+    groupByDate?: boolean;
   },
   prefs: AppendPrefs,
   label: string,
@@ -60,9 +67,10 @@ export async function runSilentAppend(
   }
   const selected = await readSelection();
   const clipboard = prefs.useClipboard ? await readClipboardText() : "";
+  const sep = separatorGlyph(prefs.mergeSeparator);
   const content = joinParts(
     [(args.text ?? "").trim(), selected, clipboard],
-    separatorGlyph(prefs.mergeSeparator),
+    sep,
   );
   if (!content.trim()) {
     await showHUD(
@@ -75,21 +83,24 @@ export async function runSilentAppend(
   try {
     const now = new Date();
     const source = await readSource();
-    const line = config.template(
-      buildTemplateVars({
-        content,
-        extra: args.text ?? "",
-        selected,
-        clipboard,
-        url: source.url,
-        title: source.title,
-        app: source.app,
-        project: args.project ?? "",
-        now,
-        dateFormat: prefs.dateFormat,
-      }),
-    );
-    const appended = applyAppend(readFile(config.file), config.heading, line);
+    const vars = buildTemplateVars({
+      content,
+      extra: args.text ?? "",
+      selected,
+      clipboard,
+      url: source.url,
+      title: source.title,
+      app: source.app,
+      project: args.project ?? "",
+      now,
+      dateFormat: prefs.dateFormat,
+      separator: sep,
+    });
+    const line = config.template(vars);
+    const current = readFile(config.file);
+    const appended = config.groupByDate
+      ? applyGroupedAppend(current, config.heading, `_${vars.date}_`, line)
+      : applyAppend(current, config.heading, line);
     writeFile(
       config.file,
       upsertUpdatedField(appended, formatDate(now, prefs.dateFormat)),

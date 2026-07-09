@@ -3,7 +3,11 @@ import {
   parseExtraFrontmatter,
   type FrontmatterField,
 } from "./frontmatter";
-import { appendToEnd, appendUnderHeading } from "./markdown";
+import {
+  appendToEnd,
+  appendUnderDateGroup,
+  appendUnderHeading,
+} from "./markdown";
 
 interface ParsedHeading {
   level: number;
@@ -37,6 +41,25 @@ export function applyAppend(
   return parsed === null
     ? appendToEnd(content, line)
     : appendUnderHeading(content, parsed.level, parsed.text, line);
+}
+
+/**
+ * Like `applyAppend`, but groups items under an auto-created/found date sub-heading
+ * (`groupText`) inside the configured heading's section. Used only by append-checklist;
+ * a null heading pref groups at the top level (see lib/markdown.appendUnderDateGroup).
+ */
+export function applyGroupedAppend(
+  content: string,
+  heading: string,
+  groupText: string,
+  line: string,
+): string {
+  return appendUnderDateGroup(
+    content,
+    parseHeadingPref(heading),
+    groupText,
+    line,
+  );
 }
 
 export interface NewNoteInput {

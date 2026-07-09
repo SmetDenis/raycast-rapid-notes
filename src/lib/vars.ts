@@ -18,6 +18,8 @@ export interface VarsInput {
   dateFormat: string;
   /** Already-parsed, cleaned tag list (via lib/tags.parseTags); optional — "" when absent. */
   tags?: string[];
+  /** Merge-separator glyph exposed to templates that recompose the pieces themselves. Default "; ". */
+  separator?: string;
 }
 
 /** Collapse every whitespace run to a single space and trim. */
@@ -30,8 +32,10 @@ function oneline(s: string): string {
  * `clipboard`) each has a raw form (trimmed, "" when empty), a `_f` form (a labeled line ending in
  * a newline — except `content_f`, a four-backtick `text` fence that wraps content VERBATIM so
  * pasted triple-backtick blocks can't break out), and a `_inline` form (whitespace collapsed).
- * `{extra}`/`{project}` are inputs; `{page}` is an adaptive link and `{link}` a fixed-anchor one;
- * `{tags}` is bare (for YAML) while `{tags_f}` prefixes each tag with `#`.
+ * `{extra}`/`{project}` are inputs (`{extra_code}` is `{extra}` wrapped in an inline-code span);
+ * `{page}` is an adaptive link and `{link}` a fixed-anchor one; `{tags}` is bare (for YAML) while
+ * `{tags_f}` prefixes each tag with `#`; `{sep}` is the merge-separator glyph for templates that
+ * recompose the capture pieces themselves.
  */
 export function buildTemplateVars({
   content,
@@ -45,6 +49,7 @@ export function buildTemplateVars({
   now,
   dateFormat,
   tags = [],
+  separator = "; ",
 }: VarsInput): TemplateVars {
   const contentT = content.trim();
   const extraT = extra.trim();
@@ -81,6 +86,7 @@ export function buildTemplateVars({
     // inputs
     extra: extraT,
     extra_f: extraT ? `Extra: ${extraT}\n` : "",
+    extra_code: extraT ? `\`${extraT}\`` : "",
     project: projectT,
     project_f: projectT ? `Project: ${projectT}\n` : "",
     // source
@@ -101,5 +107,7 @@ export function buildTemplateVars({
     date: formatDate(now, "EEE, d MMMM yyyy"),
     time: formatDate(now, "HH:mm"),
     datetime: formatDate(now, dateFormat),
+    // merge separator glyph (for templates that recompose the capture pieces)
+    sep: separator,
   };
 }

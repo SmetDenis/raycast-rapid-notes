@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import {
   applyAppend,
+  applyGroupedAppend,
   buildCreateFile,
   buildNewNote,
   composeCreateTitle,
@@ -39,6 +40,31 @@ describe("applyAppend", () => {
   test("matches the heading case-insensitively", () => {
     expect(applyAppend("### notes\n- a\n", "### Notes", "- x")).toBe(
       "### notes\n- a\n- x\n",
+    );
+  });
+});
+
+describe("applyGroupedAppend", () => {
+  test("creates the date group under the configured heading", () => {
+    expect(
+      applyGroupedAppend("# Checklist\n", "# Checklist", "_D_", "- c"),
+    ).toBe("# Checklist\n## _D_\n- c\n");
+  });
+
+  test("appends inside an existing date group", () => {
+    expect(
+      applyGroupedAppend(
+        "# Checklist\n## _D_\n- a\n",
+        "# Checklist",
+        "_D_",
+        "- b",
+      ),
+    ).toBe("# Checklist\n## _D_\n- a\n- b\n");
+  });
+
+  test("groups at the top level when the heading pref is empty", () => {
+    expect(applyGroupedAppend("intro\n", "", "_D_", "- c")).toBe(
+      "intro\n\n# _D_\n- c\n",
     );
   });
 });

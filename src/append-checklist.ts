@@ -12,6 +12,7 @@ export default async function AppendChecklistCommand(
       file: prefs.checklistFile ?? "",
       heading: prefs.checklistHeading,
       template: TEMPLATES.checklist,
+      groupByDate: true,
     },
     prefs,
     "checklist",

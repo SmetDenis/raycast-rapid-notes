@@ -37,6 +37,7 @@ describe("buildTemplateVars", () => {
       // inputs
       extra: "typed note",
       extra_f: "Extra: typed note\n",
+      extra_code: "`typed note`",
       project: "Work",
       project_f: "Project: Work\n",
       // source
@@ -57,7 +58,57 @@ describe("buildTemplateVars", () => {
       date: "Sun, 5 July 2026",
       time: "14:32",
       datetime: "2026-07-05T14:32:09",
+      // merge separator glyph
+      sep: "; ",
     });
+  });
+
+  test("wraps {extra_code} in backticks and collapses to '' when blank", () => {
+    const v = buildTemplateVars({
+      content: "x",
+      extra: "  note  ",
+      url: "",
+      title: "",
+      app: "",
+      project: "",
+      now: NOW,
+      dateFormat: FMT,
+    });
+    expect(v.extra_code).toBe("`note`");
+    const blank = buildTemplateVars({
+      content: "x",
+      url: "",
+      title: "",
+      app: "",
+      project: "",
+      now: NOW,
+      dateFormat: FMT,
+    });
+    expect(blank.extra_code).toBe("");
+  });
+
+  test("exposes {sep}: defaults to '; ' and echoes a custom separator glyph", () => {
+    const def = buildTemplateVars({
+      content: "x",
+      url: "",
+      title: "",
+      app: "",
+      project: "",
+      now: NOW,
+      dateFormat: FMT,
+    });
+    expect(def.sep).toBe("; ");
+    const custom = buildTemplateVars({
+      content: "x",
+      separator: "\n",
+      url: "",
+      title: "",
+      app: "",
+      project: "",
+      now: NOW,
+      dateFormat: FMT,
+    });
+    expect(custom.sep).toBe("\n");
   });
 
   test("collapses empty url/title/app/project (raw, _f, and page) to an empty string", () => {

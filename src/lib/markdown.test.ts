@@ -1,5 +1,10 @@
 import { describe, expect, test } from "vitest";
-import { appendToEnd, appendUnderHeading } from "./markdown";
+import {
+  appendToEnd,
+  appendUnderDateGroup,
+  appendUnderHeading,
+  indentContinuation,
+} from "./markdown";
 
 describe("appendToEnd", () => {
   test("writes the line to an empty file", () => {
@@ -96,5 +101,144 @@ describe("appendUnderHeading", () => {
         "- c",
       ),
     ).toBe("# Inbox\n- a\n- c\n## Sub\n- b\n# Done\n");
+  });
+});
+
+describe("indentContinuation", () => {
+  test("leaves a single-line item unchanged", () => {
+    expect(indentContinuation("- x")).toBe("- x");
+  });
+
+  test("indents continuation lines by four spaces", () => {
+    expect(indentContinuation("- a\nb\nc")).toBe("- a\n    b\n    c");
+  });
+
+  test("leaves blank continuation lines bare (no trailing whitespace)", () => {
+    expect(indentContinuation("- a\n\nb")).toBe("- a\n\n    b");
+  });
+
+  test("respects a custom indent width", () => {
+    expect(indentContinuation("- a\nb", 2)).toBe("- a\n  b");
+  });
+});
+
+describe("appendUnderDateGroup", () => {
+  const P = { level: 1, text: "Checklist" };
+
+  test("(1) parent exists, no groups yet: creates the group in the parent section", () => {
+    expect(appendUnderDateGroup("# Checklist\n", P, "_D_", "- c")).toBe(
+      "# Checklist\n## _D_\n- c\n",
+    );
+  });
+
+  test("(2) today's group is last: appends to the end of the group", () => {
+    expect(
+      appendUnderDateGroup("# Checklist\n## _D_\n- a\n", P, "_D_", "- b"),
+    ).toBe("# Checklist\n## _D_\n- a\n- b\n");
+  });
+
+  test("(3) today's group is not last: appends inside it, order preserved", () => {
+    expect(
+      appendUnderDateGroup(
+        "# Checklist\n## _D1_\n- a\n\n## _D2_\n- b\n",
+        P,
+        "_D1_",
+        "- c",
+      ),
+    ).toBe("# Checklist\n## _D1_\n- a\n- c\n\n## _D2_\n- b\n");
+  });
+
+  test("(4) another H1 after the section: new group goes before it", () => {
+    expect(
+      appendUnderDateGroup(
+        "# Checklist\n## _D_\n- a\n\n# Archive\n- z\n",
+        P,
+        "_E_",
+        "- c",
+      ),
+    ).toBe("# Checklist\n## _D_\n- a\n\n## _E_\n- c\n\n# Archive\n- z\n");
+  });
+
+  test("(5) parent is null, non-empty file: creates an H1 date group at the end", () => {
+    expect(appendUnderDateGroup("some text\n", null, "_D_", "- c")).toBe(
+      "some text\n\n# _D_\n- c\n",
+    );
+  });
+
+  test("(6) empty file + parent: creates parent and group", () => {
+    expect(appendUnderDateGroup("", P, "_D_", "- c")).toBe(
+      "# Checklist\n## _D_\n- c\n",
+    );
+  });
+
+  test("(7) duplicate date groups: appends to the first", () => {
+    expect(
+      appendUnderDateGroup(
+        "# Checklist\n## _D_\n- a\n\n## _D_\n- b\n",
+        P,
+        "_D_",
+        "- c",
+      ),
+    ).toBe("# Checklist\n## _D_\n- a\n- c\n\n## _D_\n- b\n");
+  });
+
+  test("(8) multi-line line is inserted verbatim", () => {
+    expect(
+      appendUnderDateGroup(
+        "# Checklist\n## _D_\n- a\n",
+        P,
+        "_D_",
+        "- b\n    cont",
+      ),
+    ).toBe("# Checklist\n## _D_\n- a\n- b\n    cont\n");
+  });
+
+  test("(9) parent is null, empty file: creates an H1 date group", () => {
+    expect(appendUnderDateGroup("", null, "_D_", "- c")).toBe("# _D_\n- c\n");
+  });
+
+  test("(10) group has multi-line items: new item lands after the continuations", () => {
+    expect(
+      appendUnderDateGroup(
+        "# Checklist\n## _D_\n- a\n    cont\n",
+        P,
+        "_D_",
+        "- b",
+      ),
+    ).toBe("# Checklist\n## _D_\n- a\n    cont\n- b\n");
+  });
+
+  test("(11) matches the group text case-insensitively, keeping file case", () => {
+    expect(
+      appendUnderDateGroup("# Checklist\n## _d_\n- a\n", P, "_D_", "- b"),
+    ).toBe("# Checklist\n## _d_\n- a\n- b\n");
+  });
+
+  test("(12) duplicate parent heading: uses the first", () => {
+    expect(
+      appendUnderDateGroup(
+        "# Checklist\n## _D_\n- a\n\n# Checklist\n- b\n",
+        P,
+        "_D_",
+        "- c",
+      ),
+    ).toBe("# Checklist\n## _D_\n- a\n- c\n\n# Checklist\n- b\n");
+  });
+
+  test("(13) parent given, non-empty file without it: creates parent + group at end", () => {
+    expect(appendUnderDateGroup("intro\n", P, "_D_", "- c")).toBe(
+      "intro\n\n# Checklist\n## _D_\n- c\n",
+    );
+  });
+
+  test("(14) parent given at H2: date group is created at H3", () => {
+    expect(
+      appendUnderDateGroup(
+        "## Tasks\n- a\n",
+        { level: 2, text: "Tasks" },
+        "_D_",
+        "- c",
+      ),
+    ).toBe("## Tasks\n- a\n\n### _D_\n- c\n");
   });
 });

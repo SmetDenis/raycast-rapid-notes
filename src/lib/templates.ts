@@ -1,3 +1,5 @@
+import { joinParts } from "./content";
+import { indentContinuation } from "./markdown";
 import type { TemplateVars } from "./vars";
 
 // The output templates as FUNCTIONS of the full variable object, not strings. There is no
@@ -17,12 +19,22 @@ function quoteBody(v: TemplateVars): string {
 
 /** One template per output target (6 total): the four instant commands + the Form's two modes. */
 export const TEMPLATES = {
-  // append-checklist: a single dated checklist line. Source (link/app) is inlined with
-  // self-collapsing punctuation so an empty piece never leaves a stray space or "()".
-  checklist: (v) =>
-    `- [ ] **${v.date} ${v.time}** ${v.content}` +
-    (v.url ? ` [link](${v.url})` : "") +
-    (v.app ? ` (${v.app})` : ""),
+  // append-checklist: a time-stamped checklist item. The DATE is NOT in the line — it
+  // lives in the auto-grouped `## _date_` sub-heading (see lib/markdown.appendUnderDateGroup).
+  // Body is recomposed from the raw pieces (not `content`) so `extra` renders first as an
+  // inline-code span and `project` as an `[!!info:]` prefix; pieces join with the merge
+  // separator, source (link/app) is inlined self-collapsing, and multi-line content has its
+  // continuations indented 4 spaces to stay inside the bullet.
+  checklist: (v) => {
+    const body = joinParts([v.extra_code, v.selected, v.clipboard], v.sep);
+    const prefix = v.project ? `\`[!!info:${v.project}]\`` : "";
+    const head = [prefix, body].filter(Boolean).join(" ");
+    return indentContinuation(
+      `- [ ] **${v.time}**: ${head}` +
+        (v.url ? ` [link](${v.url})` : "") +
+        (v.app ? ` (${v.app})` : ""),
+    );
+  },
 
   // append-note: dated entry with best-effort metadata lines (each self-collapsing via the
   // `_f` forms), a comment callout carrying the typed argument (`?` when none), and the
