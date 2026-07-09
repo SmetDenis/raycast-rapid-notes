@@ -12,7 +12,7 @@ help: ## Show this help
 dev: ## Live reload in Raycast (ray develop)
 	npm run dev
 
-build: ## Compile check (ray build)
+build: ## Compile + type-check, emit artifact to ./dist (ray build -o dist)
 	npm run build
 
 lint: ## Lint (ray lint)
