@@ -4,9 +4,9 @@ import {
   type FrontmatterField,
 } from "./frontmatter";
 import {
-  appendToEnd,
-  appendUnderDateGroup,
-  appendUnderHeading,
+  prependToTop,
+  prependUnderDateGroup,
+  prependUnderHeading,
 } from "./markdown";
 
 interface ParsedHeading {
@@ -28,9 +28,9 @@ function parseHeadingPref(pref: string): ParsedHeading | null {
 }
 
 /**
- * Append a rendered line to file content: to the end when no heading is
- * configured, otherwise under the configured heading at its parsed level,
- * matched case-insensitively.
+ * Apply the append command's write NEWEST-FIRST: prepend the rendered line to the top of
+ * the file (below any frontmatter) when no heading is configured, otherwise to the top of
+ * the configured heading's section (parsed level, matched case-insensitively).
  */
 export function applyAppend(
   content: string,
@@ -39,14 +39,15 @@ export function applyAppend(
 ): string {
   const parsed = parseHeadingPref(heading);
   return parsed === null
-    ? appendToEnd(content, line)
-    : appendUnderHeading(content, parsed.level, parsed.text, line);
+    ? prependToTop(content, line)
+    : prependUnderHeading(content, parsed.level, parsed.text, line);
 }
 
 /**
  * Like `applyAppend`, but groups items under an auto-created/found date sub-heading
- * (`groupText`) inside the configured heading's section. Used only by append-checklist;
- * a null heading pref groups at the top level (see lib/markdown.appendUnderDateGroup).
+ * (`groupText`) inside the configured heading's section, newest-first at both levels. Used
+ * only by append-checklist; a null heading pref groups at the top level (see
+ * lib/markdown.prependUnderDateGroup).
  */
 export function applyGroupedAppend(
   content: string,
@@ -54,7 +55,7 @@ export function applyGroupedAppend(
   groupText: string,
   line: string,
 ): string {
-  return appendUnderDateGroup(
+  return prependUnderDateGroup(
     content,
     parseHeadingPref(heading),
     groupText,

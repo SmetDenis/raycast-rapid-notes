@@ -2,10 +2,27 @@ function ensureTrailingNewline(s: string): string {
   return s.endsWith("\n") ? s : s + "\n";
 }
 
-/** Append a line to the end of the file, adding a trailing newline if missing. */
-export function appendToEnd(content: string, line: string): string {
+/**
+ * Index of the first body line, i.e. just past a leading `---`…`---` YAML frontmatter
+ * block; 0 when there is none (or the block is unterminated). Mirrors the frontmatter
+ * detection in `frontmatter.upsertUpdatedField` so top-of-file inserts never land above
+ * the frontmatter (which would corrupt it and the later `updated` refresh).
+ */
+function bodyStart(lines: string[]): number {
+  if (lines[0] !== "---") return 0;
+  const end = lines.indexOf("---", 1);
+  return end === -1 ? 0 : end + 1;
+}
+
+/**
+ * Prepend a line to the top of the file, below any YAML frontmatter block (newest-first).
+ * The line (which may be multi-line) is inserted verbatim; a trailing newline is ensured.
+ */
+export function prependToTop(content: string, line: string): string {
   if (content === "") return line + "\n";
-  return ensureTrailingNewline(content) + line + "\n";
+  const lines = content.split("\n");
+  lines.splice(bodyStart(lines), 0, line);
+  return ensureTrailingNewline(lines.join("\n"));
 }
 
 // Matches any ATX heading ("# ..." through "###### ..."), capturing its level
@@ -25,13 +42,13 @@ function parseHeading(line: string): Heading | null {
 }
 
 /**
- * Insert `line` at the end of the section owned by the heading
- * `{'#'×level} {text}`, matched case-insensitively at the EXACT level. The
- * section runs until the next heading of ANY level; the line is placed after the
- * last non-blank line of the section. If the heading is absent, a new section at
- * `level` is created at the end of the file with `text` written verbatim.
+ * Insert `line` at the TOP of the section owned by the heading `{'#'×level} {text}`,
+ * matched case-insensitively at the EXACT level — i.e. immediately after the heading line,
+ * before the section's existing content (newest-first). If the heading is absent, a new
+ * section at `level` is created at the END of the file (one-time bootstrap) with `text`
+ * written verbatim.
  */
-export function appendUnderHeading(
+export function prependUnderHeading(
   content: string,
   level: number,
   text: string,
@@ -50,20 +67,7 @@ export function appendUnderHeading(
     return `${ensureTrailingNewline(content)}\n${target}\n${line}\n`;
   }
 
-  let sectionEnd = lines.length;
-  for (let j = headingIndex + 1; j < lines.length; j++) {
-    if (parseHeading(lines[j]) !== null) {
-      sectionEnd = j;
-      break;
-    }
-  }
-
-  let insertPos = headingIndex + 1;
-  for (let k = headingIndex + 1; k < sectionEnd; k++) {
-    if (lines[k].trim() !== "") insertPos = k + 1;
-  }
-
-  lines.splice(insertPos, 0, line);
+  lines.splice(headingIndex + 1, 0, line);
   return ensureTrailingNewline(lines.join("\n"));
 }
 
@@ -81,35 +85,59 @@ export function indentContinuation(text: string, spaces = 4): string {
 }
 
 /**
- * Append `line` under a date sub-heading (`groupText`) inside the section owned
- * by `parent`, auto-creating the group (and the parent) when missing.
+ * Prepend `line` under a date sub-heading (`groupText`) inside the section owned by
+ * `parent`, auto-creating the group (and the parent) when missing. Newest-first at BOTH
+ * levels: a new day group goes to the top of the list and a new item to the top of its day.
  *
- * - `parent === null` (no configured heading): the group is a top-level H1 at the
- *   file end. This reduces to `appendUnderHeading` at level 1 — list items are not
- *   headings, so its "next heading of any level" boundary coincides with "next H1".
- * - Otherwise the parent section (heading level L) ends at the next heading of level
- *   ≤ L, so child date groups (level L+1) do NOT close it. The group is matched at
- *   level L+1 by exact text (case-insensitively); when absent it is appended to the
- *   end of the parent section, preceded by a blank line only when that section
- *   already had content. Duplicate parent/group headings resolve to the first.
+ * - `parent === null` (no configured heading): the group is a top-level H1. A found group
+ *   gets the item right after its heading; a missing group is created at the top of the
+ *   file, below any frontmatter (before older day groups).
+ * - Otherwise the parent section (heading level L) ends at the next heading of level ≤ L,
+ *   so child date groups (level L+1) do NOT close it. The group is matched at level L+1 by
+ *   exact text (case-insensitively); when found, the item is inserted right after the group
+ *   heading (top of the day). When absent, a new group is inserted at the top of the parent
+ *   section (right after the parent heading, before older groups), with a trailing blank
+ *   line only when the section already had content. Duplicate parent/group headings resolve
+ *   to the first. A parent that is MISSING is bootstrapped at the END of the file.
  *
  * Level is clamped to 6 (max ATX depth); a parent at H6 is unsupported (the group
  * would collide at the same level) — configure a shallower checklist heading.
  */
-export function appendUnderDateGroup(
+export function prependUnderDateGroup(
   content: string,
   parent: Heading | null,
   groupText: string,
   line: string,
 ): string {
+  const wantedGroup = groupText.toLowerCase();
+
   if (parent === null) {
-    return appendUnderHeading(content, 1, groupText, line);
+    const groupHeading = `# ${groupText}`;
+    const lines = content.split("\n");
+    const groupIdx = lines.findIndex((l) => {
+      const h = parseHeading(l);
+      return (
+        h !== null && h.level === 1 && h.text.toLowerCase() === wantedGroup
+      );
+    });
+    if (groupIdx !== -1) {
+      lines.splice(groupIdx + 1, 0, line);
+      return ensureTrailingNewline(lines.join("\n"));
+    }
+    // Group missing: create it at the top of the file, below any frontmatter.
+    if (content === "") return `${groupHeading}\n${line}\n`;
+    const at = bodyStart(lines);
+    const hasFollowing = lines.slice(at).some((l) => l.trim() !== "");
+    const block = hasFollowing
+      ? [groupHeading, line, ""]
+      : [groupHeading, line];
+    lines.splice(at, 0, ...block);
+    return ensureTrailingNewline(lines.join("\n"));
   }
 
   const { level: L, text: T } = parent;
   const groupLevel = Math.min(L + 1, 6);
   const wantedParent = T.toLowerCase();
-  const wantedGroup = groupText.toLowerCase();
   const lines = content.split("\n");
 
   const parentIdx = lines.findIndex((l) => {
@@ -117,8 +145,8 @@ export function appendUnderDateGroup(
     return h !== null && h.level === L && h.text.toLowerCase() === wantedParent;
   });
 
-  // Parent missing: create parent + group + line at the end (blank line before,
-  // except in an empty file — mirroring appendUnderHeading's "\n{target}\n...").
+  // Parent missing: bootstrap parent + group + line at the END (blank line before,
+  // except in an empty file — mirroring prependUnderHeading's "\n{target}\n...").
   if (parentIdx === -1) {
     const block =
       `${"#".repeat(L)} ${T}\n` +
@@ -153,33 +181,19 @@ export function appendUnderDateGroup(
   }
 
   if (groupIdx !== -1) {
-    // Group present: insert after its last non-blank line (sub-section ends at
-    // the next heading of level ≤ groupLevel, within the parent section).
-    let groupEnd = parentEnd;
-    for (let j = groupIdx + 1; j < parentEnd; j++) {
-      const h = parseHeading(lines[j]);
-      if (h !== null && h.level <= groupLevel) {
-        groupEnd = j;
-        break;
-      }
-    }
-    let insertPos = groupIdx + 1;
-    for (let k = groupIdx + 1; k < groupEnd; k++) {
-      if (lines[k].trim() !== "") insertPos = k + 1;
-    }
-    lines.splice(insertPos, 0, line);
+    // Group present: prepend the item right after the group heading (top of the day).
+    lines.splice(groupIdx + 1, 0, line);
     return ensureTrailingNewline(lines.join("\n"));
   }
 
-  // Group missing: append a new group at the end of the parent section, after
-  // its last non-blank line. Prefix a blank line only when the section had content.
-  let lastContent = parentIdx;
-  for (let k = parentIdx + 1; k < parentEnd; k++) {
-    if (lines[k].trim() !== "") lastContent = k;
-  }
+  // Group missing: create a new group at the TOP of the parent section (right after the
+  // parent heading, before older groups). Suffix a blank line only when the section had
+  // content, mirroring the blank line kept between date groups.
   const groupHeading = `${"#".repeat(groupLevel)} ${groupText}`;
-  const block =
-    lastContent > parentIdx ? ["", groupHeading, line] : [groupHeading, line];
-  lines.splice(lastContent + 1, 0, ...block);
+  const hasFollowing = lines
+    .slice(parentIdx + 1, parentEnd)
+    .some((l) => l.trim() !== "");
+  const block = hasFollowing ? [groupHeading, line, ""] : [groupHeading, line];
+  lines.splice(parentIdx + 1, 0, ...block);
   return ensureTrailingNewline(lines.join("\n"));
 }

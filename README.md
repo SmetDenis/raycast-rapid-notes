@@ -6,11 +6,13 @@ Raycast extension for fast note capture: append selected or typed text under a h
 
 Four instant (`no-view`, hotkey-friendly) commands plus one editable form:
 
-- **Append Checklist** — append the selection or typed text as a checklist item under a heading.
-- **Append Note** — append it as a block under a heading.
+- **Append Checklist** — add the selection or typed text as a checklist item under a heading.
+- **Append Note** — add it as a block under a heading.
 - **New Task** — create a timestamped task file with YAML frontmatter.
 - **New Note** — create a timestamped note file with YAML frontmatter.
 - **Rapid Note** — an editable form to review the capture before appending or creating a file.
+
+The append commands write **newest-first**: a new entry goes to the **top** of its heading section (and, when no heading is configured, to the top of the file, below any YAML frontmatter) so the most recent capture is always visible without scrolling.
 
 Each command has its own settings (target file/directory, heading/frontmatter, …); the form and the instant commands do **not** share config.
 
@@ -18,7 +20,7 @@ Each command has its own settings (target file/directory, heading/frontmatter, �
 
 Each command's output is rendered in code, so optional pieces (source link, app name, browser page) appear when present and **collapse cleanly when absent** — no stray `()`, double spaces, or dangling punctuation.
 
-**Append Checklist** — a time-stamped checklist item, auto-grouped under a `## _date_` sub-heading created once per day inside the configured heading. The date lives in the group heading, so the line carries only the time; a `project` renders as an `[!!info:…]` prefix, a typed argument as a backticked span, and the source link/app inline when you capture from a browser:
+**Append Checklist** — a time-stamped checklist item, auto-grouped under a `## _date_` sub-heading created once per day inside the configured heading. Newest-first at both levels: a new day heads the list and each new item goes to the top of its day. The date lives in the group heading, so the line carries only the time; a `project` renders as an `[!!info:…]` prefix, a typed argument as a backticked span, and the source link/app inline when you capture from a browser:
 
 ```
 # Checklist

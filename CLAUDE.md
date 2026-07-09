@@ -47,9 +47,9 @@ publish flow depend on them; do not reimplement logic in the Makefile or the two
   - `src/capture.ts` — non-command adapter helper (`@raycast/api`): `runSilentAppend`/`runSilentCreate`
     shared by the four `no-view` commands. Not in `lib`, not unit-tested — verify via `make dev`.
 - `src/lib/` — pure core, no `@raycast/api`: output templates as functions of a vars object
-  (`templates.ts` + `vars.ts`), date + timestamp-filename formatting, Markdown append (to file end
-  or under a configurable heading), new-note + YAML frontmatter composition (escaping-safe), tag
-  parsing, browser-app detection.
+  (`templates.ts` + `vars.ts`), date + timestamp-filename formatting, Markdown prepend (NEWEST-FIRST:
+  to the file top below frontmatter, or to the top of a configurable heading's section), new-note +
+  YAML frontmatter composition (escaping-safe), tag parsing, browser-app detection.
 - `src/shared.ts` — the non-command adapter (`@raycast/api` + `node:fs`): selection/clipboard and
   browser/app capture (`readSource`, `readSelection`, `readClipboardText`) plus file read/write. Not in `lib`,
   so not unit-tested — verify via `make dev`.
@@ -150,16 +150,20 @@ publish flow depend on them; do not reimplement logic in the Makefile or the two
   (cleaner than a throw); the active tab is the one with `active === true`. Not available on Windows.
 - Form `defaultValue` is applied once per component lifecycle — prefill the selection via
   `defaultValue`, not `value`.
-- Markdown heading insertion is the most bug-prone piece: explicitly define and test the
-  heading-missing, multiple-matching-headings, and empty-file cases. The heading pref is parsed
-  by `lib/note.parseHeadingPref` into `{level, text}` (leading `#`s ⇒ level, bare text ⇒ H1);
-  `lib/markdown.appendUnderHeading(content, level, text, line)` matches at the EXACT level and
-  case-insensitively, and the section ends at the next heading of ANY level (a nested sub-heading
-  closes it — it is NOT kept inside).
-- Append-CHECKLIST does NOT reuse `appendUnderHeading` (append-note does — leave it alone): it groups by
-  day via `lib/note.applyGroupedAppend` → `appendUnderDateGroup`, which finds/creates a `## _{date}_`
-  sub-heading (level parent+1, clamped H6; parent@H6 unsupported). DISTINCT boundary: parent section ends
-  at the next heading of level ≤ parent (date groups don't close it). Null pref ⇒ `# _{date}_`; dup ⇒ first.
+- Append writes NEWEST-FIRST (prepend), the most bug-prone piece: test heading-missing,
+  multiple-matching-headings, and empty-file cases. Heading pref → `lib/note.parseHeadingPref` `{level,
+  text}` (leading `#`s ⇒ level, bare ⇒ H1). `lib/markdown.prependUnderHeading` matches EXACT level,
+  case-insensitively, and inserts right AFTER the heading (section top); a MISSING heading bootstraps at
+  the file END. Null pref ⇒ `lib/markdown.prependToTop`, inserting at the file top BELOW any `---…---`
+  frontmatter (NEVER above — corrupts it + the later `updated` refresh; shared `bodyStart`). `prependToTop`
+  is the Form append DEFAULT (`appendHeading` default `""`).
+- Append-CHECKLIST does NOT reuse `prependUnderHeading` (append-note does — leave it): it groups by day via
+  `lib/note.applyGroupedAppend` → `prependUnderDateGroup`, finding/creating a `## _{date}_` sub-heading
+  (level parent+1, clamped H6; parent@H6 unsupported). NEWEST-FIRST at BOTH levels: a found group takes the
+  item right after its heading; a MISSING group is created at the parent-section TOP (before older groups),
+  trailing blank line only when the section had content. DISTINCT boundary: parent ends at the next heading
+  of level ≤ parent (date groups don't close it); MISSING parent bootstraps at file END. Null pref ⇒
+  top-level `# _{date}_` (missing group created at the file top below frontmatter); dup ⇒ first.
 - YAML frontmatter (create) is the other bug-prone piece — two layers: (1) structural fields
   (`title`/`project`/`source_url`/tags, `:`/`#`/quotes/spaces) escape via `yamlScalar`; (2) the user's
   `*Frontmatter` pref (`parseExtraFrontmatter`) must FAIL LOUDLY (throw → HUD/Toast + abort, never

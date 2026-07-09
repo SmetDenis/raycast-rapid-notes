@@ -9,23 +9,23 @@ import {
 } from "./note";
 
 describe("applyAppend", () => {
-  test("appends to the end when the heading is empty", () => {
-    expect(applyAppend("a\n", "", "- x")).toBe("a\n- x\n");
+  test("prepends to the top when the heading is empty", () => {
+    expect(applyAppend("a\n", "", "- x")).toBe("- x\na\n");
   });
 
   test("treats a whitespace-only heading as empty", () => {
-    expect(applyAppend("a\n", "   ", "- x")).toBe("a\n- x\n");
+    expect(applyAppend("a\n", "   ", "- x")).toBe("- x\na\n");
   });
 
-  test("appends under the heading when one is given", () => {
+  test("prepends under the heading when one is given", () => {
     expect(applyAppend("# Inbox\n- a\n", "Inbox", "- x")).toBe(
-      "# Inbox\n- a\n- x\n",
+      "# Inbox\n- x\n- a\n",
     );
   });
 
   test("parses an explicit level from the preference", () => {
     expect(applyAppend("## Tasks\n- a\n", "## Tasks", "- x")).toBe(
-      "## Tasks\n- a\n- x\n",
+      "## Tasks\n- x\n- a\n",
     );
   });
 
@@ -39,7 +39,7 @@ describe("applyAppend", () => {
 
   test("matches the heading case-insensitively", () => {
     expect(applyAppend("### notes\n- a\n", "### Notes", "- x")).toBe(
-      "### notes\n- a\n- x\n",
+      "### notes\n- x\n- a\n",
     );
   });
 });
@@ -51,7 +51,7 @@ describe("applyGroupedAppend", () => {
     ).toBe("# Checklist\n## _D_\n- c\n");
   });
 
-  test("appends inside an existing date group", () => {
+  test("prepends inside an existing date group", () => {
     expect(
       applyGroupedAppend(
         "# Checklist\n## _D_\n- a\n",
@@ -59,12 +59,12 @@ describe("applyGroupedAppend", () => {
         "_D_",
         "- b",
       ),
-    ).toBe("# Checklist\n## _D_\n- a\n- b\n");
+    ).toBe("# Checklist\n## _D_\n- b\n- a\n");
   });
 
   test("groups at the top level when the heading pref is empty", () => {
     expect(applyGroupedAppend("intro\n", "", "_D_", "- c")).toBe(
-      "intro\n\n# _D_\n- c\n",
+      "# _D_\n- c\n\nintro\n",
     );
   });
 });

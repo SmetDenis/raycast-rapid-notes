@@ -20,7 +20,7 @@ function quoteBody(v: TemplateVars): string {
 /** One template per output target (6 total): the four instant commands + the Form's two modes. */
 export const TEMPLATES = {
   // append-checklist: a time-stamped checklist item. The DATE is NOT in the line — it
-  // lives in the auto-grouped `## _date_` sub-heading (see lib/markdown.appendUnderDateGroup).
+  // lives in the auto-grouped `## _date_` sub-heading (see lib/markdown.prependUnderDateGroup).
   // Body is recomposed from the raw pieces (not `content`) so `extra` renders first as an
   // inline-code span and `project` as an `[!!info:]` prefix; pieces join with the merge
   // separator, source (link/app) is inlined self-collapsing, and multi-line content has its
