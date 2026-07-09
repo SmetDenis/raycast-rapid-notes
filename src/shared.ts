@@ -27,6 +27,8 @@ export async function readClipboardText(): Promise<string> {
 export interface Source {
   /** Frontmost source app name (always best-effort); "" if it can't be resolved. */
   app: string;
+  /** Frontmost source app bundle id (stable, unlike the display name); "" if unresolved. */
+  bundleId: string;
   /** Active browser tab url/title — only when the source is a browser, else "". */
   url: string;
   title: string;
@@ -40,23 +42,30 @@ export interface Source {
  */
 export async function readSource(): Promise<Source> {
   let app = "";
+  let bundleId = "";
   try {
     const [frontmost, defaultBrowser] = await Promise.all([
       getFrontmostApplication(),
       getDefaultApplication("https://example.com").catch(() => undefined),
     ]);
     app = frontmost.name ?? "";
+    bundleId = frontmost.bundleId ?? "";
     if (
       !environment.canAccess(BrowserExtension) ||
       !isBrowserApp(frontmost.bundleId, defaultBrowser?.bundleId)
     ) {
-      return { app, url: "", title: "" };
+      return { app, bundleId, url: "", title: "" };
     }
     const tabs = await BrowserExtension.getTabs();
     const active = tabs.find((tab) => tab.active);
-    return { app, url: active?.url ?? "", title: active?.title ?? "" };
+    return {
+      app,
+      bundleId,
+      url: active?.url ?? "",
+      title: active?.title ?? "",
+    };
   } catch {
-    return { app, url: "", title: "" };
+    return { app, bundleId, url: "", title: "" };
   }
 }
 

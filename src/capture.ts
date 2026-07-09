@@ -1,5 +1,6 @@
 import { Toast, showHUD, showToast } from "@raycast/api";
 import { join } from "node:path";
+import { readCaptureInputs } from "./lib/capture-inputs";
 import { joinParts, separatorGlyph } from "./lib/content";
 import { formatDate } from "./lib/datetime";
 import { uniqueFilename } from "./lib/filename";
@@ -14,6 +15,7 @@ import { parseTags } from "./lib/tags";
 import { type TemplateFn } from "./lib/templates";
 import { buildTemplateVars } from "./lib/vars";
 import {
+  type Source,
   fileExists,
   readClipboardText,
   readFile,
@@ -24,6 +26,20 @@ import {
 
 // Adapter helpers shared by the no-view (instant) commands. Not unit-tested (they import
 // @raycast/api); all real logic lives in ./lib. Verify behaviour via `make dev`.
+
+/** The @raycast/api-backed readers injected into lib's readCaptureInputs. */
+const captureReaders = {
+  readSelection,
+  readClipboard: readClipboardText,
+};
+
+/** Read capture inputs for `source`, injecting the real selection/clipboard readers. */
+function readInputs(source: Source, useClipboard: boolean) {
+  return readCaptureInputs(
+    { bundleId: source.bundleId, useClipboard },
+    captureReaders,
+  );
+}
 
 /** Prefs the instant APPEND path needs. No defaultTags (append has no tag source) and no filenameDateFormat. */
 export interface AppendPrefs {
@@ -65,8 +81,11 @@ export async function runSilentAppend(
     await showHUD(`Rapid Notes: set the ${label} file in preferences`);
     return;
   }
-  const selected = await readSelection();
-  const clipboard = prefs.useClipboard ? await readClipboardText() : "";
+  const source = await readSource();
+  const { selected, clipboard, usedClipboard } = await readInputs(
+    source,
+    prefs.useClipboard,
+  );
   const sep = separatorGlyph(prefs.mergeSeparator);
   const content = joinParts(
     [(args.text ?? "").trim(), selected, clipboard],
@@ -74,7 +93,7 @@ export async function runSilentAppend(
   );
   if (!content.trim()) {
     await showHUD(
-      prefs.useClipboard
+      usedClipboard
         ? "Rapid Notes: nothing selected or empty clipboard"
         : "Rapid Notes: nothing selected",
     );
@@ -82,7 +101,6 @@ export async function runSilentAppend(
   }
   try {
     const now = new Date();
-    const source = await readSource();
     const vars = buildTemplateVars({
       content,
       extra: args.text ?? "",
@@ -134,8 +152,8 @@ export async function runSilentCreate(
     await showHUD(`Rapid Notes: set the ${label} directory in preferences`);
     return;
   }
-  const selected = await readSelection();
-  const clipboard = prefs.useClipboard ? await readClipboardText() : "";
+  const source = await readSource();
+  const { selected, clipboard } = await readInputs(source, prefs.useClipboard);
   const content = joinParts(
     [(args.text ?? "").trim(), selected, clipboard],
     separatorGlyph(prefs.mergeSeparator),
@@ -148,7 +166,6 @@ export async function runSilentCreate(
   }
   try {
     const now = new Date();
-    const source = await readSource();
     const tags = parseTags(prefs.defaultTags ?? "");
     const vars = buildTemplateVars({
       content,

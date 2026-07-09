@@ -30,7 +30,8 @@ publish flow depend on them; do not reimplement logic in the Makefile or the two
 
 - `make dev` — live reload in Raycast (→ `ray develop`); also imports the extension (local-only
   distribution path, no Store publish needed).
-- `make build` — compile check + full type-check (→ `ray build -e dist`).
+- `make build` — compile check + full type-check, emits the built extension to `./dist`
+  (→ `ray build -e dist -o dist`); `dist/` is git-ignored.
 - `make lint` / `make fix` — lint / autofix (→ `ray lint` / `ray lint --fix`).
 - `make test` — unit tests (→ `vitest run`); `make test-watch` for watch mode.
 - `make check` — lint + test + build (the pre-finish gate).
@@ -136,6 +137,13 @@ publish flow depend on them; do not reimplement logic in the Makefile or the two
   a HUD error and exit. It reads the selection, merging the clipboard ONLY when the
   `useClipboard` preference is ON (then the empty HUD reads "nothing selected or empty
   clipboard"). Silent commits immediately, so the clipboard read stays behind that opt-in.
+- GPU terminals (Ghostty, kitty, Alacritty, WezTerm) hide the selection from BOTH AX and the Cmd+C
+  fallback (in a terminal Cmd+C = SIGINT) → `getSelectedText()` returns "" (verified: Ghostty
+  `sel=0`). Silent capture detects them by bundleId (`lib/terminal.isNonAxTerminal`, needs
+  `Source.bundleId`) and reads the clipboard REGARDLESS of `useClipboard`, skipping the selection
+  (`readCaptureInputs`) — relies on the terminal's `copy-on-select` (Ghostty must be `= clipboard`,
+  NOT `true`: `true` uses the selection clipboard, invisible to `Clipboard.readText()`). Native AX
+  terminals (Terminal.app, iTerm2) EXCLUDED: reading their clipboard risks a stale/dup merge.
 - Browser URL/title are best-effort and captured ONLY when the frontmost app is a browser
   (`getFrontmostApplication` + `lib/browser.isBrowserApp`), so a selection from another app never
   grabs an unrelated background tab. Gate the read with `environment.canAccess(BrowserExtension)`
