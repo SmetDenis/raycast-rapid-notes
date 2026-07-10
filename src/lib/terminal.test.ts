@@ -10,6 +10,11 @@ describe("isNonAxTerminal", () => {
     expect(isNonAxTerminal("net.kovidgoyal.kitty")).toBe(true);
   });
 
+  test("recognizes cmux (stable and nightly channels)", () => {
+    expect(isNonAxTerminal("com.cmuxterm.app")).toBe(true);
+    expect(isNonAxTerminal("com.cmuxterm.app.nightly")).toBe(true);
+  });
+
   test("excludes native AX terminals (Terminal.app, iTerm2)", () => {
     expect(isNonAxTerminal("com.apple.Terminal")).toBe(false);
     expect(isNonAxTerminal("com.googlecode.iterm2")).toBe(false);

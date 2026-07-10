@@ -137,7 +137,7 @@ publish flow depend on them; do not reimplement logic in the Makefile or the two
   a HUD error and exit. It reads the selection, merging the clipboard ONLY when the
   `useClipboard` preference is ON (then the empty HUD reads "nothing selected or empty
   clipboard"). Silent commits immediately, so the clipboard read stays behind that opt-in.
-- GPU terminals (Ghostty, kitty, Alacritty, WezTerm) hide the selection from BOTH AX and the Cmd+C
+- GPU terminals (Ghostty, kitty, Alacritty, WezTerm, cmux) hide the selection from BOTH AX and the Cmd+C
   fallback (in a terminal Cmd+C = SIGINT) → `getSelectedText()` returns "" (verified: Ghostty
   `sel=0`). Silent capture detects them by bundleId (`lib/terminal.isNonAxTerminal`, needs
   `Source.bundleId`) and reads the clipboard REGARDLESS of `useClipboard`, skipping the selection
