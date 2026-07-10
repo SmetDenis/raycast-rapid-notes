@@ -12,6 +12,17 @@ Local/personal for now; may be published to the Raycast Store later.
 - Keep ALL business logic in `src/lib/` free of any `@raycast/api` import. Command files are thin
   adapters that call `lib`. Reason: `@raycast/api` only runs inside Raycast, so anything importing
   it is not unit-testable — `lib` is where logic and tests live.
+- EXHAUSTIVE combinatorial test coverage is MANDATORY, not best-effort. Any behaviour switched by a
+  preference/option/argument (`useSelection`, `useClipboard`, `mergeSeparator`, `project`, terminal
+  vs AX vs browser source, empty vs multi-line, heading set/unset, …) must be tested across ALL
+  combinations of the flags it INTERACTS with — never "spot-checked", never assumed. Enumerate the
+  interacting inputs, take their cross-product, and assert every cell — including EVERY unhappy path
+  (empty/whitespace capture, missing target file/dir, malformed frontmatter, stale-selection leak,
+  terminal-empty error). Ortho­gonal knobs that provably don't interact (e.g. `dateFormat` ×
+  `useSelection`) are tested in their own module, NOT crossed — crossing them is noise, not coverage.
+  Verify branch coverage by making the code testable (extract a pure planner into `lib` — see
+  `lib/plan.ts`), NOT by mocking `@raycast/api`. If a branch is hard to reach in a test, that is a
+  design smell: make the logic pure first. "Probably covered" is a defect; enumerate and prove it.
 - This tool is deliberately minimal (append checklist/note + create task/note, instant or via one
   shared Form). Push back on feature creep and over-engineering before adding any command, option, or
   dependency.
@@ -225,6 +236,9 @@ Prefer these over memory for Raycast API/tooling questions — current where tra
 ## Before finishing
 
 - Run and pass: `make check` (lint + test + build).
+- When a change touches any option/flag/argument: enumerate the interacting inputs, take their
+  cross-product, and confirm a test asserts EVERY cell — happy AND unhappy paths (see the exhaustive
+  combinatorial-coverage rule in Critical). Do not claim coverage from spot-checks.
 - Manually verify in Raycast via `npm run dev` — runtime behavior isn't covered by unit tests.
 
 ## Keeping this file current
