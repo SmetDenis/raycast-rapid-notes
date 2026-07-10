@@ -1,19 +1,15 @@
 import { Toast, showHUD, showToast } from "@raycast/api";
 import { join } from "node:path";
 import { readCaptureInputs } from "./lib/capture-inputs";
-import { joinParts, separatorGlyph } from "./lib/content";
-import { formatDate } from "./lib/datetime";
-import { uniqueFilename } from "./lib/filename";
 import { upsertUpdatedField } from "./lib/frontmatter";
 import {
-  applyGroupedAppend,
-  buildCreateFile,
-  isEmptyCapture,
-} from "./lib/note";
-import { chooseAppendFormat } from "./lib/route";
+  type RoutedAppendConfig,
+  planSilentAppend,
+  planSilentCreate,
+  renderAppendedFile,
+} from "./lib/plan";
 import { parseTags } from "./lib/tags";
-import { TEMPLATES, type TemplateFn } from "./lib/templates";
-import { buildTemplateVars } from "./lib/vars";
+import { type TemplateFn } from "./lib/templates";
 import {
   type Source,
   fileExists,
@@ -34,22 +30,35 @@ const captureReaders = {
 };
 
 /** Read capture inputs for `source`, injecting the real selection/clipboard readers. */
-function readInputs(source: Source, useClipboard: boolean) {
+function readInputs(
+  source: Source,
+  useSelection: boolean,
+  useClipboard: boolean,
+) {
   return readCaptureInputs(
-    { bundleId: source.bundleId, useClipboard },
+    { bundleId: source.bundleId, useSelection, useClipboard },
     captureReaders,
   );
 }
 
-/** Prefs the instant APPEND path needs. No defaultTags (append has no tag source) and no filenameDateFormat. */
-export interface AppendPrefs {
+/** Prefs common to both instant paths. */
+interface BasePrefs {
   dateFormat: string;
   useClipboard: boolean;
   mergeSeparator: string;
 }
 
-/** Prefs the instant CREATE path needs: adds the filename format and the tag source. */
-export interface CreatePrefs extends AppendPrefs {
+/** Prefs the instant APPEND path needs. Adds `useSelection` (append-only); no tag source / filename format. */
+export interface AppendPrefs extends BasePrefs {
+  useSelection: boolean;
+}
+
+/**
+ * Prefs the instant CREATE path needs: adds the filename format and the tag source. NOTE: create has
+ * no `useSelection` toggle — those commands (New Task / New Note) are EXPERIMENTAL and always read the
+ * selection (preserving their prior behaviour); only append gained the opt-in selection toggle.
+ */
+export interface CreatePrefs extends BasePrefs {
   filenameDateFormat: string;
   defaultTags: string;
 }
@@ -60,17 +69,14 @@ export interface CommandArgs {
   title?: string;
 }
 
-/** Two append targets the merged command routes between by capture shape. */
-export interface RoutedAppendConfig {
-  note: { file: string; heading: string };
-  checklist: { file: string; heading: string };
-}
+// RoutedAppendConfig lives in ./lib/plan (pure) and is re-exported for the command adapters.
+export type { RoutedAppendConfig };
 
 /**
- * Instant append (no-view): read selection/clipboard, merge the typed argument, then CLASSIFY the
- * capture — multi-line → note block, single line → checklist item — and append it date-grouped
- * (newest-first) to the matching target, refreshing `updated` if the file has frontmatter. Bails
- * with a HUD message when nothing was captured or the routed target file is unset.
+ * Instant append (no-view): read selection/clipboard, then delegate the whole decision to the pure
+ * `planSilentAppend` (content merge + shape routing + rendering + empty/missing branches). This
+ * adapter only does I/O and UI: read the target file, write the spliced result, and map the plan's
+ * discriminated outcome to a HUD/Toast.
  */
 export async function runSilentAppend(
   args: CommandArgs,
@@ -78,58 +84,48 @@ export async function runSilentAppend(
   prefs: AppendPrefs,
 ): Promise<void> {
   const source = await readSource();
-  const { selected, clipboard, usedClipboard } = await readInputs(
+  const inputs = await readInputs(
     source,
+    prefs.useSelection,
     prefs.useClipboard,
   );
-  const sep = separatorGlyph(prefs.mergeSeparator);
-  const content = joinParts(
-    [(args.text ?? "").trim(), selected, clipboard],
-    sep,
-  );
-  if (!content.trim()) {
-    await showHUD(
-      usedClipboard
-        ? "Rapid Notes: nothing selected or empty clipboard"
-        : "Rapid Notes: nothing selected",
-    );
-    return;
+  const plan = planSilentAppend({
+    args,
+    inputs,
+    source: { url: source.url, title: source.title, app: source.app },
+    config,
+    now: new Date(),
+    dateFormat: prefs.dateFormat,
+    mergeSeparator: prefs.mergeSeparator,
+  });
+
+  switch (plan.kind) {
+    case "emptyTerminal":
+      // A non-AX terminal can't expose its selection to the AX API — only its clipboard
+      // (copy-on-select) is reachable — so an empty capture there is a distinct, actionable
+      // failure: surface it loudly (red Toast) instead of the generic "nothing selected" HUD.
+      await showToast({
+        style: Toast.Style.Failure,
+        title: "Nothing to capture in this terminal",
+        message:
+          "GPU terminals expose only the clipboard — enable Use Selection or Use Clipboard, or pass text as an argument.",
+      });
+      return;
+    case "emptyGeneric":
+      await showHUD(
+        plan.usedClipboard
+          ? "Rapid Notes: nothing selected or empty clipboard"
+          : "Rapid Notes: nothing selected",
+      );
+      return;
+    case "missingTarget":
+      await showHUD(`Rapid Notes: set the ${plan.format} file in preferences`);
+      return;
   }
-  const format = chooseAppendFormat(content);
-  const target = config[format];
-  const template =
-    format === "note" ? TEMPLATES.appendNote : TEMPLATES.checklist;
-  if (!target.file.trim()) {
-    await showHUD(`Rapid Notes: set the ${format} file in preferences`);
-    return;
-  }
+
   try {
-    const now = new Date();
-    const vars = buildTemplateVars({
-      content,
-      extra: args.text ?? "",
-      selected,
-      clipboard,
-      url: source.url,
-      title: source.title,
-      app: source.app,
-      project: args.project ?? "",
-      now,
-      dateFormat: prefs.dateFormat,
-      separator: sep,
-    });
-    const line = template(vars);
-    const current = readFile(target.file);
-    const appended = applyGroupedAppend(
-      current,
-      target.heading,
-      `_${vars.date}_`,
-      line,
-    );
-    writeFile(
-      target.file,
-      upsertUpdatedField(appended, formatDate(now, prefs.dateFormat)),
-    );
+    const appended = renderAppendedFile(readFile(plan.file), plan);
+    writeFile(plan.file, upsertUpdatedField(appended, plan.updated));
     await showHUD("Rapid Notes: appended");
   } catch (error) {
     await showToast({
@@ -141,9 +137,10 @@ export async function runSilentAppend(
 }
 
 /**
- * Instant create (no-view): read selection/clipboard, merge the typed argument, then write a
- * new frontmatter file. Aborts on an empty capture (content, title AND project all blank) so a
- * stray hotkey can't leave a junk file; surfaces a loud frontmatter-pref error via a Toast.
+ * Instant create (no-view): read selection/clipboard, then delegate to the pure `planSilentCreate`
+ * (empty guard + argument merge + frontmatter-file composition + collision-free filename). This
+ * adapter only does I/O and UI. NOTE: create (New Task / New Note) is EXPERIMENTAL and has no
+ * useSelection toggle — it always reads the selection (its prior behaviour); only append opted in.
  */
 export async function runSilentCreate(
   args: CommandArgs,
@@ -155,54 +152,33 @@ export async function runSilentCreate(
   prefs: CreatePrefs,
   label: string,
 ): Promise<void> {
-  if (!config.directory.trim()) {
-    await showHUD(`Rapid Notes: set the ${label} directory in preferences`);
-    return;
-  }
   const source = await readSource();
-  const { selected, clipboard } = await readInputs(source, prefs.useClipboard);
-  const content = joinParts(
-    [(args.text ?? "").trim(), selected, clipboard],
-    separatorGlyph(prefs.mergeSeparator),
-  );
-  const title = args.title ?? "";
-  const project = args.project ?? "";
-  if (isEmptyCapture({ content, title, project })) {
-    await showHUD("Rapid Notes: nothing to capture");
-    return;
-  }
+  const inputs = await readInputs(source, true, prefs.useClipboard);
   try {
-    const now = new Date();
-    const tags = parseTags(prefs.defaultTags ?? "");
-    const vars = buildTemplateVars({
-      content,
-      extra: args.text ?? "",
-      selected,
-      clipboard,
-      url: source.url,
-      title,
-      app: source.app,
-      project,
-      now,
+    const plan = planSilentCreate({
+      args,
+      inputs,
+      source: { url: source.url, title: source.title, app: source.app },
+      directory: config.directory,
+      template: config.template,
+      frontmatter: config.frontmatter,
+      tags: parseTags(prefs.defaultTags ?? ""),
+      now: new Date(),
       dateFormat: prefs.dateFormat,
-      tags,
+      filenameDateFormat: prefs.filenameDateFormat,
+      mergeSeparator: prefs.mergeSeparator,
+      exists: (name) => fileExists(join(config.directory, name)),
     });
-    const file = buildCreateFile({
-      frontmatterPref: config.frontmatter,
-      created: formatDate(now, prefs.dateFormat),
-      title,
-      project,
-      dateFallback: `${vars.date} ${vars.time}`,
-      tags,
-      sourceUrl: source.url,
-      body: config.template(vars),
-    });
-    const filename = uniqueFilename(
-      formatDate(now, prefs.filenameDateFormat),
-      (name) => fileExists(join(config.directory, name)),
-    );
-    writeFile(join(config.directory, filename), file);
-    await showHUD(`Rapid Notes: created ${filename}`);
+    switch (plan.kind) {
+      case "missingDirectory":
+        await showHUD(`Rapid Notes: set the ${label} directory in preferences`);
+        return;
+      case "empty":
+        await showHUD("Rapid Notes: nothing to capture");
+        return;
+    }
+    writeFile(join(plan.directory, plan.filename), plan.file);
+    await showHUD(`Rapid Notes: created ${plan.filename}`);
   } catch (error) {
     await showToast({
       style: Toast.Style.Failure,

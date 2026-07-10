@@ -5,6 +5,8 @@ export interface CaptureInputs {
   clipboard: string;
   /** Whether the clipboard was consulted (drives the empty-capture HUD message). */
   usedClipboard: boolean;
+  /** Whether the source is a non-AX GPU terminal (drives the terminal-specific empty-capture error). */
+  inTerminal: boolean;
 }
 
 /** I/O the adapter injects: reading these needs `@raycast/api`, so they stay OUT of lib. */
@@ -14,27 +16,39 @@ export interface CaptureReaders {
 }
 
 /**
- * Decide and read the capture inputs for a Silent command. Normally that's the selection plus,
- * when useClipboard is on, the clipboard. But a GPU terminal that hides its selection from the
- * macOS Accessibility API (Ghostty, kitty, ...) makes getSelectedText() return "" and fires its
- * Cmd+C fallback uselessly (Cmd+C = SIGINT in a terminal) — so for those we SKIP the selection
- * read entirely and read the clipboard REGARDLESS of the preference: with copy-on-select on it
- * already holds the current selection. Readers are injected so this stays unit-testable in lib.
+ * Decide and read the capture inputs for a Silent command from two ORTHOGONAL opt-in toggles:
+ * `useSelection` reads the current selection, `useClipboard` reads the clipboard. Both default
+ * off on the append command, so nothing is auto-read and a stray selection (e.g. the previous
+ * checklist line still highlighted in an editor) can never bleed into the merge.
+ *
+ * A non-AX GPU terminal (Ghostty, kitty, ...) hides its selection from the macOS Accessibility
+ * API — getSelectedText() returns "" and its Cmd+C fallback fires SIGINT uselessly — so there the
+ * selection is only reachable through the clipboard (copy-on-select). In that case we SKIP the
+ * selection reader entirely and read the clipboard as the selection surrogate when EITHER toggle
+ * is on. `inTerminal` is returned so the caller can raise a terminal-specific error when the
+ * terminal capture came back empty. Readers are injected so this stays unit-testable in lib.
  */
 export async function readCaptureInputs(
-  opts: { bundleId: string | undefined; useClipboard: boolean },
+  opts: {
+    bundleId: string | undefined;
+    useSelection: boolean;
+    useClipboard: boolean;
+  },
   readers: CaptureReaders,
 ): Promise<CaptureInputs> {
   if (isNonAxTerminal(opts.bundleId)) {
+    const wantsCapture = opts.useSelection || opts.useClipboard;
     return {
       selected: "",
-      clipboard: await readers.readClipboard(),
-      usedClipboard: true,
+      clipboard: wantsCapture ? await readers.readClipboard() : "",
+      usedClipboard: wantsCapture,
+      inTerminal: true,
     };
   }
   return {
-    selected: await readers.readSelection(),
+    selected: opts.useSelection ? await readers.readSelection() : "",
     clipboard: opts.useClipboard ? await readers.readClipboard() : "",
     usedClipboard: opts.useClipboard,
+    inTerminal: false,
   };
 }

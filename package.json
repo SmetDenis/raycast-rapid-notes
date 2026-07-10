@@ -51,6 +51,15 @@
           "default": "# Draft items"
         },
         {
+          "name": "useSelection",
+          "title": "Selection",
+          "label": "Merge the selected text into the capture",
+          "description": "When on, the frontmost app's selected text is read and merged into the captured content. When off (default), the selection is never read — pass text as the argument instead. In a GPU terminal the selection is read via the clipboard (copy-on-select).",
+          "type": "checkbox",
+          "required": false,
+          "default": false
+        },
+        {
           "name": "useClipboard",
           "title": "Clipboard",
           "label": "Merge the clipboard into the capture",

@@ -49,12 +49,17 @@ publish flow depend on them; do not reimplement logic in the Makefile or the two
   - `src/rapid-note.tsx` — `view` Form, a STANDALONE command with its OWN prefs (not a dispatcher): a
     mode dropdown `{append|create}` appends (routed by line-count to `appendNoteFile`/`appendChecklistFile`)
     or creates in `createDirectory`; no arguments.
-  - `src/capture.ts` — non-command adapter helper (`@raycast/api`): `runSilentAppend`/`runSilentCreate`
-    shared by the `no-view` commands. Not in `lib`, not unit-tested — verify via `make dev`.
+  - `src/capture.ts` — THIN non-command adapter (`@raycast/api`): `runSilentAppend`/`runSilentCreate`
+    read selection/clipboard, delegate the whole decision to `lib/plan.plan*`, then switch on the
+    returned discriminated outcome to do the I/O (`readFile`/`writeFile`) and UI (HUD/Toast). No
+    business logic here — verify the I/O/UI wiring via `make dev`.
 - `src/lib/` — pure core, no `@raycast/api`: output templates as functions of a vars object
   (`templates.ts` + `vars.ts`), date + timestamp-filename formatting, Markdown prepend (NEWEST-FIRST:
   to the file top below frontmatter, or to the top of a configurable heading's section), new-note +
-  YAML frontmatter composition (escaping-safe), tag parsing, browser-app detection.
+  YAML frontmatter composition (escaping-safe), tag parsing, browser-app detection, and the
+  capture→decision PLANNERS (`plan.ts`: `planSilentAppend`/`planSilentCreate`/`planFormAppend`/
+  `planFormCreate` — content merge + shape routing + rendering + empty/missing branches — returning
+  a discriminated `*Plan` the adapters switch on; this is where the append bug-site is unit-tested).
 - `src/shared.ts` — the non-command adapter (`@raycast/api` + `node:fs`): selection/clipboard and
   browser/app capture (`readSource`, `readSelection`, `readClipboardText`) plus file read/write. Not in `lib`,
   so not unit-tested — verify via `make dev`.
@@ -82,8 +87,9 @@ publish flow depend on them; do not reimplement logic in the Makefile or the two
   `defaultTags` (create commands), and the Form's `appendNote{File,Heading}` +
   `appendChecklist{File,Heading}` + `create{Directory,Frontmatter}` + `defaultTags` (own duplicated
   paths, by design; exact keys in `package.json`). Only `dateFormat`, `filenameDateFormat`,
-  `mergeSeparator` stay extension-scope; `useClipboard` is command-scope on all 4. `defaultTags` is the
-  same key in 3 scopes (task, note, form) — namespaced per command.
+  `mergeSeparator` stay extension-scope; `useClipboard` is command-scope on all 4. `useSelection` is
+  command-scope on `append` ONLY (default OFF; create commands always read the selection — no toggle).
+  `defaultTags` is the same key in 3 scopes (task, note, form) — namespaced per command.
 - Template vars (the palette the template functions draw from; all built in
   `lib/vars.buildTemplateVars`, listed in README): capture TRIO (`content`/`selected`/`clipboard`) each
   has a RAW form (trimmed, `""` when empty), an `_f` twin (labeled line ending in `\n`, self-collapsing
@@ -143,16 +149,22 @@ publish flow depend on them; do not reimplement logic in the Makefile or the two
   Content from `readSelection` and shows a separate editable Clipboard field from `readClipboardText`,
   gated by the `useClipboard` preference.
 - Silent (`no-view`) command: never render UI; give feedback via `showHUD`, and on empty input show
-  a HUD error and exit. It reads the selection, merging the clipboard ONLY when the
-  `useClipboard` preference is ON (then the empty HUD reads "nothing selected or empty
-  clipboard"). Silent commits immediately, so the clipboard read stays behind that opt-in.
+  a HUD error and exit. APPEND reads selection/clipboard from TWO orthogonal opt-in toggles
+  (`readCaptureInputs`): `useSelection` (default OFF) reads the selection, `useClipboard` (default
+  OFF) reads the clipboard. Default-off matters — a stray selection still highlighted in an editor
+  (e.g. the previous checklist line in Obsidian) MUST NOT auto-merge into the new item; that
+  compounding leak was the reason append's selection became opt-in. Pass text as the `text` argument
+  when both are off. Create commands (New Task / New Note) have NO `useSelection` toggle and ALWAYS
+  read the selection — they are EXPERIMENTAL (rarely used, to be reworked), keeping prior behaviour.
 - GPU terminals (Ghostty, kitty, Alacritty, WezTerm, cmux) hide the selection from BOTH AX and the Cmd+C
   fallback (in a terminal Cmd+C = SIGINT) → `getSelectedText()` returns "" (verified: Ghostty
   `sel=0`). Silent capture detects them by bundleId (`lib/terminal.isNonAxTerminal`, needs
-  `Source.bundleId`) and reads the clipboard REGARDLESS of `useClipboard`, skipping the selection
-  (`readCaptureInputs`) — relies on the terminal's `copy-on-select` (Ghostty must be `= clipboard`,
-  NOT `true`: `true` uses the selection clipboard, invisible to `Clipboard.readText()`). Native AX
-  terminals (Terminal.app, iTerm2) EXCLUDED: reading their clipboard risks a stale/dup merge.
+  `Source.bundleId`), skips the selection reader, and reads the clipboard as the selection surrogate
+  when EITHER `useSelection` OR `useClipboard` is on — relies on the terminal's `copy-on-select`
+  (Ghostty must be `= clipboard`, NOT `true`: `true` uses the selection clipboard, invisible to
+  `Clipboard.readText()`). `readCaptureInputs` returns `inTerminal`; append raises a red Failure
+  Toast (HUDs can't be red) when a terminal capture came back empty. Native AX terminals
+  (Terminal.app, iTerm2) EXCLUDED: reading their clipboard risks a stale/dup merge.
 - Browser URL/title are best-effort and captured ONLY when the frontmost app is a browser
   (`getFrontmostApplication` + `lib/browser.isBrowserApp`), so a selection from another app never
   grabs an unrelated background tab. Gate the read with `environment.canAccess(BrowserExtension)`

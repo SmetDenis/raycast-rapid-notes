@@ -6,9 +6,10 @@ Raycast extension for fast note capture: append selected or typed text under a h
 
 Three instant (`no-view`, hotkey-friendly) commands plus one editable form:
 
-- **Append** — add the selection or typed text under a heading, routed by shape: a **single line**
-  becomes a checklist item (in the checklist file), **multi-line** text becomes a note block (in the
-  note file). Both are grouped by date.
+- **Append** — add the typed text (and, opt-in, the selection and/or clipboard) under a heading,
+  routed by shape: a **single line** becomes a checklist item (in the checklist file), **multi-line**
+  text becomes a note block (in the note file). Both are grouped by date. Reading the selection is
+  off by default (enable **Use Selection**); pass text as the argument otherwise.
 - **New Task** — create a timestamped task file with YAML frontmatter.
 - **New Note** — create a timestamped note file with YAML frontmatter.
 - **Rapid Note** — an editable form to review the capture before appending or creating a file.

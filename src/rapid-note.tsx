@@ -11,14 +11,9 @@ import {
 } from "@raycast/api";
 import { join } from "node:path";
 import { useEffect, useState } from "react";
-import { formatDate } from "./lib/datetime";
-import { uniqueFilename } from "./lib/filename";
 import { upsertUpdatedField } from "./lib/frontmatter";
-import { applyGroupedAppend, buildCreateFile } from "./lib/note";
-import { chooseAppendFormat } from "./lib/route";
+import { planFormAppend, planFormCreate, renderAppendedFile } from "./lib/plan";
 import { parseTags } from "./lib/tags";
-import { TEMPLATES } from "./lib/templates";
-import { buildTemplateVars } from "./lib/vars";
 import {
   fileExists,
   readClipboardText,
@@ -62,7 +57,6 @@ export default function RapidNoteCommand(
   const [content, setContent] = useState(draft?.content ?? "");
   const [clipboard, setClipboard] = useState(draft?.clipboard ?? "");
   const [url, setUrl] = useState(draft?.url ?? "");
-  const [tabTitle, setTabTitle] = useState("");
   const [title, setTitle] = useState(draft?.title ?? "");
   const [tags, setTags] = useState(draft?.tags ?? prefs.defaultTags ?? "");
   const [project, setProject] = useState(draft?.project ?? "");
@@ -74,7 +68,6 @@ export default function RapidNoteCommand(
       if (prefs.useClipboard) setClipboard(await readClipboardText());
       const source = await readSource();
       setUrl(source.url);
-      setTabTitle(source.title);
       // Prefill Title with the browser page title without clobbering anything already typed.
       if (source.title) setTitle((current) => current || source.title);
     })();
@@ -83,105 +76,71 @@ export default function RapidNoteCommand(
   async function handleSubmit(values: Values) {
     try {
       const now = new Date();
-      const create = values.mode === "create";
       const parsedTags = parseTags(values.tags ?? "");
-      const vars = buildTemplateVars({
-        content: values.content,
-        extra: "",
-        selected: values.content,
-        clipboard: values.clipboard,
-        url: values.url,
-        title: create ? (values.title ?? "") : values.title || tabTitle,
-        app: "",
-        project: values.project,
-        now,
-        dateFormat: prefs.dateFormat,
-        tags: parsedTags,
-      });
 
-      if (create) {
-        const directory = prefs.createDirectory ?? "";
-        if (!directory.trim()) {
+      if (values.mode === "create") {
+        const plan = planFormCreate({
+          content: values.content,
+          title: values.title ?? "",
+          project: values.project,
+          url: values.url,
+          tags: parsedTags,
+          directory: prefs.createDirectory ?? "",
+          frontmatter: prefs.createFrontmatter,
+          now,
+          dateFormat: prefs.dateFormat,
+          filenameDateFormat: prefs.filenameDateFormat,
+          exists: (name) => fileExists(join(prefs.createDirectory ?? "", name)),
+        });
+        if (plan.kind === "missingDirectory") {
           await showToast({
             style: Toast.Style.Failure,
             title: "Set the create directory in preferences",
           });
           return;
         }
-        const file = buildCreateFile({
-          frontmatterPref: prefs.createFrontmatter,
-          created: formatDate(now, prefs.dateFormat),
-          title: values.title ?? "",
-          project: values.project,
-          dateFallback: `${vars.date} ${vars.time}`,
-          tags: parsedTags,
-          sourceUrl: values.url.trim(),
-          body: TEMPLATES.formCreate(vars),
-        });
-        const filename = uniqueFilename(
-          formatDate(now, prefs.filenameDateFormat),
-          (name) => fileExists(join(directory, name)),
-        );
-        writeFile(join(directory, filename), file);
+        writeFile(join(plan.directory, plan.filename), plan.file);
         await showToast({
           style: Toast.Style.Success,
           title: "Note created",
-          message: filename,
+          message: plan.filename,
         });
       } else {
-        if (!values.content.trim()) {
+        // Render from the Content field ONLY (planFormAppend): routing input equals render input,
+        // and the Form's Clipboard/Title fields never bleed into the block.
+        const plan = planFormAppend({
+          content: values.content,
+          project: values.project,
+          url: values.url,
+          config: {
+            note: {
+              file: prefs.appendNoteFile ?? "",
+              heading: prefs.appendNoteHeading,
+            },
+            checklist: {
+              file: prefs.appendChecklistFile ?? "",
+              heading: prefs.appendChecklistHeading,
+            },
+          },
+          now,
+          dateFormat: prefs.dateFormat,
+        });
+        if (plan.kind === "empty") {
           await showToast({
             style: Toast.Style.Failure,
             title: "Nothing to append",
           });
           return;
         }
-        const format = chooseAppendFormat(values.content);
-        const target =
-          format === "note"
-            ? {
-                file: prefs.appendNoteFile ?? "",
-                heading: prefs.appendNoteHeading,
-              }
-            : {
-                file: prefs.appendChecklistFile ?? "",
-                heading: prefs.appendChecklistHeading,
-              };
-        if (!target.file.trim()) {
+        if (plan.kind === "missingTarget") {
           await showToast({
             style: Toast.Style.Failure,
-            title: `Set the append ${format} file in preferences`,
+            title: `Set the append ${plan.format} file in preferences`,
           });
           return;
         }
-        // Render from the Content field ONLY: routing input (values.content) must equal render
-        // input, and the Form's Clipboard/Title fields must not bleed into the block. `app` is
-        // Raycast in an open Form; `title: ""` keeps the note's Title out of the `- Page:` line
-        // (Page then comes only from a filled URL field).
-        const appendVars = buildTemplateVars({
-          content: values.content,
-          extra: "",
-          selected: values.content,
-          clipboard: "",
-          url: values.url,
-          title: "",
-          app: "",
-          project: values.project,
-          now,
-          dateFormat: prefs.dateFormat,
-        });
-        const template =
-          format === "note" ? TEMPLATES.appendNote : TEMPLATES.checklist;
-        const appended = applyGroupedAppend(
-          readFile(target.file),
-          target.heading,
-          `_${appendVars.date}_`,
-          template(appendVars),
-        );
-        writeFile(
-          target.file,
-          upsertUpdatedField(appended, formatDate(now, prefs.dateFormat)),
-        );
+        const appended = renderAppendedFile(readFile(plan.file), plan);
+        writeFile(plan.file, upsertUpdatedField(appended, plan.updated));
         await showToast({ style: Toast.Style.Success, title: "Appended" });
       }
       await popToRoot();
