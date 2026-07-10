@@ -45,9 +45,10 @@ export function applyAppend(
 
 /**
  * Like `applyAppend`, but groups items under an auto-created/found date sub-heading
- * (`groupText`) inside the configured heading's section, newest-first at both levels. Used
- * only by append-checklist; a null heading pref groups at the top level (see
- * lib/markdown.prependUnderDateGroup).
+ * (`groupText`) inside the configured heading's section, newest-first at both levels. Used by
+ * the merged append command and the Form for BOTH shapes (a checklist item and a multi-line note
+ * block group identically — `line` is spliced as one element); a null heading pref groups at the
+ * top level (see lib/markdown.prependUnderDateGroup).
  */
 export function applyGroupedAppend(
   content: string,

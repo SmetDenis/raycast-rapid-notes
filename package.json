@@ -15,71 +15,40 @@
   ],
   "commands": [
     {
-      "name": "append-checklist",
-      "title": "Rapid - Checklist (silent)",
-      "description": "Instantly append the selected or typed text as a checklist item under a heading in your Markdown file.",
+      "name": "append",
+      "title": "Rapid - Append (silent)",
+      "description": "Instantly append the selected or typed text: a single line becomes a checklist item, multi-line text a note block — each under its own heading, grouped by date.",
       "mode": "no-view",
       "preferences": [
         {
-          "name": "checklistFile",
-          "title": "File",
-          "description": "Markdown file this command writes to.",
+          "name": "noteFile",
+          "title": "Note File",
+          "description": "Markdown file that multi-line captures (note blocks) are appended to.",
           "type": "file",
-          "required": true
-        },
-        {
-          "name": "checklistHeading",
-          "title": "Heading",
-          "description": "Append under this heading (case-insensitive). Leading #s set the level, e.g. '## Tasks'; plain text is H1; leave empty to append to the end of the file.",
-          "type": "textfield",
-          "required": false,
-          "default": "# Draft items"
-        },
-        {
-          "name": "useClipboard",
-          "title": "Clipboard",
-          "label": "Merge the clipboard into the capture",
-          "description": "When on, the clipboard is read and merged into the captured content. When off, the clipboard is never read.",
-          "type": "checkbox",
-          "required": false,
-          "default": false
-        }
-      ],
-      "arguments": [
-        {
-          "name": "text",
-          "type": "text",
-          "placeholder": "Extra text",
           "required": false
         },
         {
-          "name": "project",
-          "type": "text",
-          "placeholder": "Project name",
-          "required": false
-        }
-      ]
-    },
-    {
-      "name": "append-note",
-      "title": "Rapid - Note (silent)",
-      "description": "Instantly append the selected or typed text as a block under a heading in your notes file.",
-      "mode": "no-view",
-      "preferences": [
-        {
-          "name": "appendNoteFile",
-          "title": "File",
-          "description": "Markdown file this command writes to.",
-          "type": "file",
-          "required": true
-        },
-        {
-          "name": "appendNoteHeading",
-          "title": "Heading",
-          "description": "Append under this heading (case-insensitive). Leading #s set the level; plain text is H1; leave empty to append to the end of the file.",
+          "name": "noteHeading",
+          "title": "Note Heading",
+          "description": "Append note blocks under this heading (case-insensitive), grouped by date. Leading #s set the level; plain text is H1; empty puts the date group at the top of the file (below any frontmatter).",
           "type": "textfield",
           "required": false,
           "default": "# Draft Notes"
+        },
+        {
+          "name": "checklistFile",
+          "title": "Checklist File",
+          "description": "Markdown file that single-line captures (checklist items) are appended to.",
+          "type": "file",
+          "required": false
+        },
+        {
+          "name": "checklistHeading",
+          "title": "Checklist Heading",
+          "description": "Append checklist items under this heading (case-insensitive), grouped by date. Leading #s set the level; plain text is H1; empty puts the date group at the top of the file (below any frontmatter).",
+          "type": "textfield",
+          "required": false,
+          "default": "# Draft items"
         },
         {
           "name": "useClipboard",
@@ -233,19 +202,34 @@
       "mode": "view",
       "preferences": [
         {
-          "name": "appendFile",
-          "title": "Append: File",
-          "description": "Markdown file the form appends to when 'Append' is selected.",
+          "name": "appendNoteFile",
+          "title": "Append: Note File",
+          "description": "Markdown file the form appends multi-line captures to (note blocks) in Append mode.",
           "type": "file",
           "required": false
         },
         {
-          "name": "appendHeading",
-          "title": "Append: Heading",
-          "description": "Append under this heading (case-insensitive). Leading #s set the level; plain text is H1; empty appends to the end of the file.",
+          "name": "appendNoteHeading",
+          "title": "Append: Note Heading",
+          "description": "Append note blocks under this heading (case-insensitive), grouped by date. Leading #s set the level; plain text is H1; empty puts the date group at the top of the file (below any frontmatter).",
           "type": "textfield",
           "required": false,
-          "default": ""
+          "default": "# Draft Notes"
+        },
+        {
+          "name": "appendChecklistFile",
+          "title": "Append: Checklist File",
+          "description": "Markdown file the form appends single-line captures to (checklist items) in Append mode.",
+          "type": "file",
+          "required": false
+        },
+        {
+          "name": "appendChecklistHeading",
+          "title": "Append: Checklist Heading",
+          "description": "Append checklist items under this heading (case-insensitive), grouped by date. Leading #s set the level; plain text is H1; empty puts the date group at the top of the file (below any frontmatter).",
+          "type": "textfield",
+          "required": false,
+          "default": "# Draft items"
         },
         {
           "name": "createDirectory",

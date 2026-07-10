@@ -14,7 +14,8 @@ import { useEffect, useState } from "react";
 import { formatDate } from "./lib/datetime";
 import { uniqueFilename } from "./lib/filename";
 import { upsertUpdatedField } from "./lib/frontmatter";
-import { applyAppend, buildCreateFile } from "./lib/note";
+import { applyGroupedAppend, buildCreateFile } from "./lib/note";
+import { chooseAppendFormat } from "./lib/route";
 import { parseTags } from "./lib/tags";
 import { TEMPLATES } from "./lib/templates";
 import { buildTemplateVars } from "./lib/vars";
@@ -40,9 +41,10 @@ interface Values {
 }
 
 /**
- * Standalone editable-capture form with its OWN preferences (independent of the four instant
- * commands). A mode toggle chooses Append (write under a heading in the configured file) or
- * Create (write a new frontmatter file in the configured directory). The Content field is
+ * Standalone editable-capture form with its OWN preferences (independent of the three instant
+ * commands). A mode toggle chooses Append (route the Content field by line-count to the note or
+ * checklist target, date-grouped) or Create (write a new frontmatter file in the configured
+ * directory). The Content field is
  * prefilled from the selection; the Clipboard field (when `useClipboard` is on) from the
  * clipboard — both editable. `{content}` is the Content field verbatim (WYSIWYG); the 3-way
  * auto-merge is an instant-command affordance. All construction is delegated to ./lib.
@@ -61,7 +63,6 @@ export default function RapidNoteCommand(
   const [clipboard, setClipboard] = useState(draft?.clipboard ?? "");
   const [url, setUrl] = useState(draft?.url ?? "");
   const [tabTitle, setTabTitle] = useState("");
-  const [app, setApp] = useState("");
   const [title, setTitle] = useState(draft?.title ?? "");
   const [tags, setTags] = useState(draft?.tags ?? prefs.defaultTags ?? "");
   const [project, setProject] = useState(draft?.project ?? "");
@@ -74,7 +75,6 @@ export default function RapidNoteCommand(
       const source = await readSource();
       setUrl(source.url);
       setTabTitle(source.title);
-      setApp(source.app);
       // Prefill Title with the browser page title without clobbering anything already typed.
       if (source.title) setTitle((current) => current || source.title);
     })();
@@ -92,7 +92,7 @@ export default function RapidNoteCommand(
         clipboard: values.clipboard,
         url: values.url,
         title: create ? (values.title ?? "") : values.title || tabTitle,
-        app,
+        app: "",
         project: values.project,
         now,
         dateFormat: prefs.dateFormat,
@@ -129,21 +129,57 @@ export default function RapidNoteCommand(
           message: filename,
         });
       } else {
-        const target = prefs.appendFile ?? "";
-        if (!target.trim()) {
+        if (!values.content.trim()) {
           await showToast({
             style: Toast.Style.Failure,
-            title: "Set the append file in preferences",
+            title: "Nothing to append",
           });
           return;
         }
-        const appended = applyAppend(
-          readFile(target),
-          prefs.appendHeading,
-          TEMPLATES.formAppend(vars),
+        const format = chooseAppendFormat(values.content);
+        const target =
+          format === "note"
+            ? {
+                file: prefs.appendNoteFile ?? "",
+                heading: prefs.appendNoteHeading,
+              }
+            : {
+                file: prefs.appendChecklistFile ?? "",
+                heading: prefs.appendChecklistHeading,
+              };
+        if (!target.file.trim()) {
+          await showToast({
+            style: Toast.Style.Failure,
+            title: `Set the append ${format} file in preferences`,
+          });
+          return;
+        }
+        // Render from the Content field ONLY: routing input (values.content) must equal render
+        // input, and the Form's Clipboard/Title fields must not bleed into the block. `app` is
+        // Raycast in an open Form; `title: ""` keeps the note's Title out of the `- Page:` line
+        // (Page then comes only from a filled URL field).
+        const appendVars = buildTemplateVars({
+          content: values.content,
+          extra: "",
+          selected: values.content,
+          clipboard: "",
+          url: values.url,
+          title: "",
+          app: "",
+          project: values.project,
+          now,
+          dateFormat: prefs.dateFormat,
+        });
+        const template =
+          format === "note" ? TEMPLATES.appendNote : TEMPLATES.checklist;
+        const appended = applyGroupedAppend(
+          readFile(target.file),
+          target.heading,
+          `_${appendVars.date}_`,
+          template(appendVars),
         );
         writeFile(
-          target,
+          target.file,
           upsertUpdatedField(appended, formatDate(now, prefs.dateFormat)),
         );
         await showToast({ style: Toast.Style.Success, title: "Appended" });

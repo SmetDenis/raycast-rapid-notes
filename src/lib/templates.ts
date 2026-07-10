@@ -12,14 +12,14 @@ import type { TemplateVars } from "./vars";
 
 export type TemplateFn = (vars: TemplateVars) => string;
 
-/** Join the captured pieces (selection + clipboard) that form an append-note quote body. */
+/** Join the captured pieces (selection + clipboard) that form the note-block quote body. */
 function quoteBody(v: TemplateVars): string {
   return [v.selected, v.clipboard].filter(Boolean).join("\n\n");
 }
 
-/** One template per output target (6 total): the four instant commands + the Form's two modes. */
+/** One template per output shape (5 total): append note/checklist, create task/note, formCreate. */
 export const TEMPLATES = {
-  // append-checklist: a time-stamped checklist item. The DATE is NOT in the line — it
+  // the append command (checklist branch): a time-stamped checklist item. The DATE is NOT in the line — it
   // lives in the auto-grouped `## _date_` sub-heading (see lib/markdown.prependUnderDateGroup).
   // Body is recomposed from the raw pieces (not `content`) so `extra` renders first as an
   // inline-code span and `project` as an `[!!info:]` prefix; pieces join with the merge
@@ -36,19 +36,26 @@ export const TEMPLATES = {
     );
   },
 
-  // append-note: dated entry with best-effort metadata lines (each self-collapsing via the
-  // `_f` forms), a comment callout carrying the typed argument (`?` when none), and the
-  // captured selection quoted in a verbatim four-backtick fence (omitted when nothing was
-  // captured). The trailing "---\n\n" separates consecutive entries.
+  // append (note branch): a time-only dated block for the auto-grouped `## _date_` heading.
+  // The DATE lives in the group sub-heading (like checklist), so the header carries only the
+  // time plus an optional `[!!info:{project}]` marker. `App`/`Page` are bulleted lines built
+  // inline from the RAW `v.app`/`v.page` (not `page_f`, which `note`/`formCreate` still consume),
+  // so this reformat cannot leak into other templates. A comment callout carries the typed
+  // argument (`?` when none). The captured body is quoted in a four-backtick `md` fence (kept
+  // four backticks so pasted ``` can't break out); it is omitted when nothing was captured.
+  // Trailing `---` (with the blank line above it from the callout/fence) divides consecutive
+  // blocks within a day group.
   appendNote: (v) => {
     const quote = quoteBody(v);
+    const head =
+      `**${v.time}**` + (v.project ? ` \`[!!info:${v.project}]\`` : "");
     return (
-      `- **${v.date} ${v.time}**\n` +
-      v.app_f +
-      v.page_f +
+      `${head}\n` +
+      (v.app ? `- App: ${v.app}\n` : "") +
+      (v.page ? `- Page: ${v.page}\n` : "") +
       `\n> [!comment]\n> ${v.extra || "?"}\n\n` +
-      (quote ? `\`\`\`\`text\n${quote}\n\`\`\`\`\n\n` : "") +
-      `---\n\n`
+      (quote ? `\`\`\`\`md\n${quote}\n\`\`\`\`\n\n` : "") +
+      `---`
     );
   },
 
@@ -57,10 +64,6 @@ export const TEMPLATES = {
 
   // new-note: content plus the source page reference.
   note: (v) => `${v.content}\n\n${v.page_f}`,
-
-  // Rapid Note form, append mode: content plus a dated footer. No app: in the focus-stealing
-  // Form the frontmost app may resolve to Raycast, so it is left out until confirmed.
-  formAppend: (v) => `${v.content}\n\n_${v.date} ${v.time}_`,
 
   // Rapid Note form, create mode: content plus the source page reference.
   formCreate: (v) => `${v.content}\n\n${v.page_f}`,

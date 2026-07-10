@@ -87,17 +87,30 @@ describe("checklist default", () => {
   });
 });
 
-describe("appendNote default", () => {
-  test("browser + extra: metadata lines, comment=extra, selection quoted in fence", () => {
+describe("appendNote default (grouped, time-only)", () => {
+  test("browser + project + extra: time-only header, info project, bulleted App/Page, md fence", () => {
     const out = TEMPLATES.appendNote(
-      vars({ ...BROWSER, extra: "important", selected: "line one\nline two" }),
+      vars({
+        ...BROWSER,
+        project: "Work",
+        extra: "important",
+        selected: "line one\nline two",
+      }),
     );
-    expect(out).toContain("From app: Safari\n");
-    expect(out).toContain("Page: [Great Article](https://example.com/a)\n");
+    expect(out.startsWith("**14:30** `[!!info:Work]`\n")).toBe(true);
+    expect(out).toContain("- App: Safari\n");
+    expect(out).toContain("- Page: [Great Article](https://example.com/a)\n");
     expect(out).toContain("> [!comment]\n> important\n");
-    expect(out).toContain("````text\nline one\nline two\n````");
-    expect(out.endsWith("---\n\n")).toBe(true);
-    expect(out).not.toContain("- -"); // the old broken-bullet artifact
+    expect(out).toContain("````md\nline one\nline two\n````");
+    expect(out.endsWith("---")).toBe(true);
+    expect(out).not.toContain("From app:"); // old label gone
+    expect(out).not.toContain("- **"); // no bulleted date header
+    expect(out).not.toContain("July"); // date is NOT in the block (it is in the group heading)
+  });
+  test("no project: header is time only", () => {
+    const out = TEMPLATES.appendNote(vars({ ...EMPTY, selected: "quote" }));
+    expect(out.startsWith("**14:30**\n")).toBe(true);
+    expect(out).not.toContain("[!!info:");
   });
   test("no extra: callout falls back to ?", () => {
     const out = TEMPLATES.appendNote(
@@ -105,14 +118,12 @@ describe("appendNote default", () => {
     );
     expect(out).toContain("> [!comment]\n> ?\n");
   });
-  test("empty source: no metadata, no broken bullet", () => {
-    const out = TEMPLATES.appendNote(vars({ ...EMPTY, selected: "quote" }));
-    expect(out.startsWith("- **Wed, 8 July 2026 14:30**\n")).toBe(true);
-    expect(out).not.toContain("From app:");
-    expect(out).not.toContain("Page:");
-    expect(out).not.toContain("- -");
+  test("non-browser: app rendered as a bullet, no Page line", () => {
+    const out = TEMPLATES.appendNote(vars({ ...TERMINAL, selected: "quote" }));
+    expect(out).toContain("- App: Terminal\n");
+    expect(out).not.toContain("- Page:");
   });
-  test("no selection/clipboard: body fence is omitted entirely", () => {
+  test("no selection/clipboard: the body fence is omitted entirely", () => {
     const out = TEMPLATES.appendNote(
       vars({
         ...TERMINAL,
@@ -142,14 +153,5 @@ describe("note / formCreate defaults", () => {
     expect(TEMPLATES.formCreate(vars(BROWSER))).toBe(
       TEMPLATES.note(vars(BROWSER)),
     );
-  });
-});
-
-describe("formAppend default", () => {
-  test("footer has date+time only, NO app (dropped: Form may resolve app=Raycast)", () => {
-    const out = TEMPLATES.formAppend(vars({ app: "Raycast" }));
-    expect(out).toBe("buy milk\n\n_Wed, 8 July 2026 14:30_");
-    expect(out).not.toContain("Raycast");
-    expect(out).not.toContain("·");
   });
 });

@@ -67,6 +67,18 @@ describe("applyGroupedAppend", () => {
       "# _D_\n- c\n\nintro\n",
     );
   });
+
+  test("groups and stacks a MULTI-LINE block newest-first (note-block shape)", () => {
+    const block1 = "**14:30**\n- App: Safari\n\n> [!comment]\n> ?\n\n---";
+    const block2 = "**15:00**\n- App: Safari\n\n> [!comment]\n> ?\n\n---";
+    const once = applyGroupedAppend("# Notes\n", "# Notes", "_D_", block1);
+    expect(once).toBe("# Notes\n## _D_\n" + block1 + "\n");
+    const twice = applyGroupedAppend(once, "# Notes", "_D_", block2);
+    // newest block sits right under the day heading, before the older block
+    expect(twice.indexOf("**15:00**")).toBeLessThan(twice.indexOf("**14:30**"));
+    expect(twice).toContain("## _D_\n**15:00**");
+    expect(twice.match(/## _D_/g)?.length).toBe(1); // one day group, not two
+  });
 });
 
 describe("buildNewNote", () => {

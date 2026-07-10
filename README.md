@@ -4,15 +4,16 @@ Raycast extension for fast note capture: append selected or typed text under a h
 
 ## Commands
 
-Four instant (`no-view`, hotkey-friendly) commands plus one editable form:
+Three instant (`no-view`, hotkey-friendly) commands plus one editable form:
 
-- **Append Checklist** — add the selection or typed text as a checklist item under a heading.
-- **Append Note** — add it as a block under a heading.
+- **Append** — add the selection or typed text under a heading, routed by shape: a **single line**
+  becomes a checklist item (in the checklist file), **multi-line** text becomes a note block (in the
+  note file). Both are grouped by date.
 - **New Task** — create a timestamped task file with YAML frontmatter.
 - **New Note** — create a timestamped note file with YAML frontmatter.
 - **Rapid Note** — an editable form to review the capture before appending or creating a file.
 
-The append commands write **newest-first**: a new entry goes to the **top** of its heading section (and, when no heading is configured, to the top of the file, below any YAML frontmatter) so the most recent capture is always visible without scrolling.
+The **Append** command writes **newest-first**: entries are grouped under a per-day `## _date_` sub-heading inside the configured heading, and a new entry goes to the **top** of its day group (a new day heads the section) so the most recent capture is always visible without scrolling. With no heading configured, the day group sits at the top of the file, below any YAML frontmatter.
 
 Each command has its own settings (target file/directory, heading/frontmatter, …); the form and the instant commands do **not** share config.
 
@@ -20,46 +21,48 @@ Each command has its own settings (target file/directory, heading/frontmatter, �
 
 Each command's output is rendered in code, so optional pieces (source link, app name, browser page) appear when present and **collapse cleanly when absent** — no stray `()`, double spaces, or dangling punctuation.
 
-**Append Checklist** — a time-stamped checklist item, auto-grouped under a `## _date_` sub-heading created once per day inside the configured heading. Newest-first at both levels: a new day heads the list and each new item goes to the top of its day. The date lives in the group heading, so the line carries only the time; a `project` renders as an `[!!info:…]` prefix, a typed argument as a backticked span, and the source link/app inline when you capture from a browser:
+**Append (single-line capture → checklist item)** — a time-stamped checklist item, auto-grouped under a `## _date_` sub-heading created once per day inside the configured heading. Newest-first at both levels: a new day heads the list and each new item goes to the top of its day. The date lives in the group heading, so the line carries only the time; a `project` renders as an `[!!info:…]` prefix, a typed argument as a backticked span, and the source link/app inline when you capture from a browser:
 
 ```
-# Checklist
+# Draft items
 ## _Wed, 8 July 2026_
 - [ ] **14:30**: `[!!info:Work]` `note`; Fix the login redirect [link](https://example.com/a) (Safari)
 ```
 
-Multi-line captures keep their continuation lines indented four spaces so they stay inside the bullet. From a non-browser app the link drops and only ` (Terminal)` remains; with no source at all, just the timed item.
+From a non-browser app the link drops and only ` (Terminal)` remains; with no source at all, just the timed item.
 
-**Append Note** — a dated block with best-effort metadata, a comment slot, and the selection quoted verbatim:
+**Append (multi-line capture → note block)** — a note block under its own `## _date_` day group (same date-grouping engine as the checklist). The date lives in the group heading, so the block header carries only the time, plus an optional `[!!info:project]` marker; `App`/`Page` are bulleted metadata lines; a comment slot holds the typed argument; and the captured text is quoted verbatim in a four-backtick `md` fence:
 
 ~~~
-- **Wed, 8 July 2026 14:30**
-From app: Safari
-Page: [Great Article](https://example.com/a)
+# Draft Notes
+## _Wed, 8 July 2026_
+**14:30** `[!!info:Work]`
+- App: Safari
+- Page: [Great Article](https://example.com/a)
 
 > [!comment]
 > your typed argument (or `?` when you don't type one)
 
-````text
-the selected text
+````md
+the captured text
 ````
 
 ---
 ~~~
 
-The `From app:` / `Page:` lines and the quote fence each vanish when their source is empty.
+The `- App:` / `- Page:` lines, the `[!!info:…]` marker, and the quote fence each vanish when their source is empty. New blocks stack newest-first at the top of the day group.
 
 **New Task** — the body is just the captured text; the YAML frontmatter is added automatically.
 
 **New Note** — the capture plus a `Page: …` source line when captured from a browser.
 
-**Rapid Note** (form) — *append* mode: the capture with a dated footer `_Wed, 8 July 2026 14:30_`; *create* mode: same as New Note. The app name is intentionally left out of the form footer (an open form is itself the frontmost app).
+**Rapid Note** (form) — *append* mode: the Content field is routed by line-count into a checklist item or a note block (same formats and date-grouping as the instant **Append** command), written to the form's own note/checklist targets; *create* mode: same as New Note. The app name is intentionally suppressed (an open form is itself the frontmost app), so a note block from the form has no `- App:` line — its `- Page:` line appears only when you fill the URL field.
 
 Create commands (New Task, New Note, and the form's create mode) write YAML frontmatter — `created`, `title`, `source_url`, `tags`, plus the extra fields from the command's **Frontmatter** preference — automatically. The body function outputs only the note body.
 
 ## Changing the output format
 
-There is no template preference. Each command's output is a small function in `src/lib/templates.ts` — `TEMPLATES.checklist`, `.appendNote`, `.task`, `.note`, `.formAppend`, `.formCreate`. To change a format, edit the function and run `make dev` to reload.
+There is no template preference. Each command's output is a small function in `src/lib/templates.ts` — `TEMPLATES.checklist`, `.appendNote`, `.task`, `.note`, `.formCreate`. To change a format, edit the function and run `make dev` to reload.
 
 Each function receives a `vars` object (built in `src/lib/vars.ts`) — the palette to draw from:
 

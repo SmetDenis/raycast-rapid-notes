@@ -1,10 +1,11 @@
 # rapid-notes — Claude Code instructions
 
-Raycast extension (TypeScript/React) for fast note capture. Four instant (`no-view`) commands —
-append a checklist item or text block under a heading, or create a new timestamped task/note file
-with YAML frontmatter — plus a STANDALONE editable Form (`rapid-note`) with its own append/create
-targets. Output formats live in code (`lib/templates.ts`), not preferences. Local/personal for now;
-may be published to the Raycast Store later.
+Raycast extension (TypeScript/React) for fast note capture. Three instant (`no-view`) commands —
+one **Append** command that routes a capture by line-count (single line → checklist item, multi-line
+→ note block, both date-grouped under their own heading), plus **New Task** / **New Note** that create
+a timestamped task/note file with YAML frontmatter — plus a STANDALONE editable Form (`rapid-note`)
+with its own append/create targets. Output formats live in code (`lib/templates.ts`), not preferences.
+Local/personal for now; may be published to the Raycast Store later.
 
 ## Critical
 
@@ -39,13 +40,17 @@ publish flow depend on them; do not reimplement logic in the Makefile or the two
 
 ## Architecture
 
-- Command entry points (thin adapters). Four `no-view` (instant, hotkey-friendly) commands + one Form:
-  - `src/append-checklist.ts`, `src/append-note.ts` — `no-view`, append under a heading in a file.
+- Command entry points (thin adapters). Three `no-view` (instant, hotkey-friendly) commands + one Form:
+  - `src/append.ts` — `no-view`, one command that classifies the capture via
+    `lib/route.chooseAppendFormat` (`content.trim().includes("\n")`) and appends a checklist item
+    (single line) or a note block (multi-line) date-grouped under the matching heading in
+    `noteFile`/`checklistFile`.
   - `src/new-task.ts`, `src/new-note.ts` — `no-view`, create a new frontmatter file in a directory.
   - `src/rapid-note.tsx` — `view` Form, a STANDALONE command with its OWN prefs (not a dispatcher): a
-    mode dropdown `{append|create}` appends under a heading in `appendFile` or creates in `createDirectory`; no arguments.
+    mode dropdown `{append|create}` appends (routed by line-count to `appendNoteFile`/`appendChecklistFile`)
+    or creates in `createDirectory`; no arguments.
   - `src/capture.ts` — non-command adapter helper (`@raycast/api`): `runSilentAppend`/`runSilentCreate`
-    shared by the four `no-view` commands. Not in `lib`, not unit-tested — verify via `make dev`.
+    shared by the `no-view` commands. Not in `lib`, not unit-tested — verify via `make dev`.
 - `src/lib/` — pure core, no `@raycast/api`: output templates as functions of a vars object
   (`templates.ts` + `vars.ts`), date + timestamp-filename formatting, Markdown prepend (NEWEST-FIRST:
   to the file top below frontmatter, or to the top of a configurable heading's section), new-note +
@@ -72,11 +77,13 @@ publish flow depend on them; do not reimplement logic in the Makefile or the two
 - Per-target prefs are COMMAND-scope (each on that command's OWN settings screen; a command reads only
   its own command-scope prefs + inherited extension-scope, never another command's — the Form and the
   instant commands do NOT share config). Each target owns its file/dir (+ heading for append,
-  frontmatter for create): `checklist*`/`appendNote*` (append commands), `task*`/`note*` +
-  `defaultTags` (create commands), and the Form's `append{File,Heading}` +
-  `create{Directory,Frontmatter}` + `defaultTags` (own duplicated paths, by design; exact keys
-  in `package.json`). Only `dateFormat`, `filenameDateFormat`, `mergeSeparator` stay extension-scope;
-  `useClipboard` is command-scope on all 5. `defaultTags` is the same key in 3 scopes (task, note, form) — namespaced per command.
+  frontmatter for create): the `append` command owns `note{File,Heading}` + `checklist{File,Heading}`
+  (non-required, runtime-guarded — a shape whose file is unset HUDs an error), `task*`/`note*` +
+  `defaultTags` (create commands), and the Form's `appendNote{File,Heading}` +
+  `appendChecklist{File,Heading}` + `create{Directory,Frontmatter}` + `defaultTags` (own duplicated
+  paths, by design; exact keys in `package.json`). Only `dateFormat`, `filenameDateFormat`,
+  `mergeSeparator` stay extension-scope; `useClipboard` is command-scope on all 4. `defaultTags` is the
+  same key in 3 scopes (task, note, form) — namespaced per command.
 - Template vars (the palette the template functions draw from; all built in
   `lib/vars.buildTemplateVars`, listed in README): capture TRIO (`content`/`selected`/`clipboard`) each
   has a RAW form (trimmed, `""` when empty), an `_f` twin (labeled line ending in `\n`, self-collapsing
@@ -87,19 +94,21 @@ publish flow depend on them; do not reimplement logic in the Makefile or the two
   yyyy`)/`time` (`HH:mm`)/`datetime` (the `dateFormat` pref). `page` adapts
   `[title](url)`/`<url>`/title/`""`. Trim policy: capture VERBATIM; raw
   forms trimmed, `content_f` as-is, emptiness on trimmed value; rendered output NEVER trimmed. `project`
-  reaches APPEND only if that template references it (checklist DOES, via the `[!!info:{project}]`
-  prefix; appendNote doesn't → dropped); in CREATE it is structural (title prefix + `project:` field).
+  reaches APPEND via the `[!!info:{project}]` marker (both checklist AND appendNote render it); in CREATE
+  it is structural (title prefix + `project:` field).
 - Templates ARE FUNCTIONS `(vars) => string` in `lib/templates.TEMPLATES`, NOT strings/prefs — editing a
   function (then `make dev`) is the only way to change output; real JS renders cleanly across every
-  capture branch. Command files pass the fn to `capture.ts`; the Form calls `formAppend`/`formCreate` in
-  `handleSubmit`. Current templates: checklist = `**HH:mm**:` (date is in the auto-grouped `## _date_`
-  heading) + optional `[!!info:{project}]` prefix + body (`extra_code`, `selected`, `clipboard` via
-  `sep`) + inline `link`/`(app)`, continuations 4-space indented (`indentContinuation`); appendNote =
-  dated block + `app_f`/`page_f` + `> [!comment]` (`extra`|`?`) + fence + `---`; task = `content`;
-  note/formCreate = `content` + `page_f`; formAppend = `content` + dated footer (NO app — Form may
-  resolve `app`="Raycast").
+  capture branch. `capture.ts` and the Form both classify the capture (`lib/route.chooseAppendFormat`)
+  and pick `appendNote`/`checklist` accordingly; the Form calls the chosen template + `formCreate` in
+  `handleSubmit`. Current templates (5 total): checklist = `**HH:mm**:` (date is in the auto-grouped
+  `## _date_` heading) + optional `[!!info:{project}]` prefix + body (`extra_code`, `selected`,
+  `clipboard` via `sep`) + inline `link`/`(app)`, continuations 4-space indented (`indentContinuation`);
+  appendNote = grouped time-only block `**HH:mm**` + optional `[!!info:{project}]` + bulleted `- App:`/
+  `- Page:` (built inline from RAW `app`/`page`, NOT the shared `app_f`/`page_f`) + `> [!comment]`
+  (`extra`|`?`) + four-backtick `md` fence + trailing `---`; task = `content`; note/formCreate =
+  `content` + `page_f`. `formAppend` was RETIRED — the Form now routes to `appendNote`/`checklist`.
 - `content` = `extra + selection + clipboard` (present pieces only, `mergeSeparator` between) via
-  `lib/content.joinParts` for the four instant commands; the Form uses its Content field verbatim
+  `lib/content.joinParts` for the three instant commands; the Form uses its Content field verbatim
   (`selected` == `content` there). Clipboard participates only when `useClipboard` is ON.
 - Create (New Task / New Note) writes YAML frontmatter — generated STRUCTURALLY in `lib`
   (`buildCreateFile`), never from the template — then the body template. Field order: configurable
@@ -119,10 +128,10 @@ publish flow depend on them; do not reimplement logic in the Makefile or the two
 - Default tags: a comma-separated `textfield` (task/note/form scopes). Create uses it — the Form
   prefills its Tags field (replace, not merge), the Silent create commands read it directly — feeding
   both the `tags:` frontmatter and the `tags`/`tags_f` vars. Silent APPEND has no tag source → `tags` empty.
-- Arguments (optional single-line, via `LaunchProps`; the four instant commands ONLY — the Form takes
+- Arguments (optional single-line, via `LaunchProps`; the three instant commands ONLY — the Form takes
   NONE): `text` is the `extra` var and joins the `content` merge via `lib/content.joinParts` (present
   pieces only, separator between adjacent kept pieces, capture verbatim); `mergeSeparator` →
-  `separatorGlyph`: `semicolon` (default `"; "`) / `space` / `newline`. `project` (all four) feeds
+  `separatorGlyph`: `semicolon` (default `"; "`) / `space` / `newline`. `project` (all three) feeds
   the `project` var; the create commands also take a `title` argument (3-arg limit).
 
 ## Gotchas
@@ -155,15 +164,19 @@ publish flow depend on them; do not reimplement logic in the Makefile or the two
   text}` (leading `#`s ⇒ level, bare ⇒ H1). `lib/markdown.prependUnderHeading` matches EXACT level,
   case-insensitively, and inserts right AFTER the heading (section top); a MISSING heading bootstraps at
   the file END. Null pref ⇒ `lib/markdown.prependToTop`, inserting at the file top BELOW any `---…---`
-  frontmatter (NEVER above — corrupts it + the later `updated` refresh; shared `bodyStart`). `prependToTop`
-  is the Form append DEFAULT (`appendHeading` default `""`).
-- Append-CHECKLIST does NOT reuse `prependUnderHeading` (append-note does — leave it): it groups by day via
-  `lib/note.applyGroupedAppend` → `prependUnderDateGroup`, finding/creating a `## _{date}_` sub-heading
+  frontmatter (NEVER above — corrupts it + the later `updated` refresh; shared `bodyStart`). This
+  `prependUnderHeading`/`prependToTop` path is the non-grouped `applyAppend` primitive (now unused);
+  live appends go through the date-grouped engine below, whose null-pref branch reuses the same
+  top-below-frontmatter insertion.
+- BOTH append branches (checklist AND note) now use `lib/note.applyGroupedAppend` → `prependUnderDateGroup`
+  — one date-grouped insertion engine. It splices the rendered `line` as a SINGLE element, so a multi-line
+  note block groups exactly like a single-line checklist item. It finds/creates a `## _{date}_` sub-heading
   (level parent+1, clamped H6; parent@H6 unsupported). NEWEST-FIRST at BOTH levels: a found group takes the
   item right after its heading; a MISSING group is created at the parent-section TOP (before older groups),
   trailing blank line only when the section had content. DISTINCT boundary: parent ends at the next heading
   of level ≤ parent (date groups don't close it); MISSING parent bootstraps at file END. Null pref ⇒
-  top-level `# _{date}_` (missing group created at the file top below frontmatter); dup ⇒ first.
+  top-level `# _{date}_` (missing group created at the file top below frontmatter); dup ⇒ first. The
+  non-grouped `lib/note.applyAppend` is now UNUSED by the app but kept (tested, harmless) — prune later.
 - YAML frontmatter (create) is the other bug-prone piece — two layers: (1) structural fields
   (`title`/`project`/`source_url`/tags, `:`/`#`/quotes/spaces) escape via `yamlScalar`; (2) the user's
   `*Frontmatter` pref (`parseExtraFrontmatter`) must FAIL LOUDLY (throw → HUD/Toast + abort, never

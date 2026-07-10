@@ -6,13 +6,13 @@ import { formatDate } from "./lib/datetime";
 import { uniqueFilename } from "./lib/filename";
 import { upsertUpdatedField } from "./lib/frontmatter";
 import {
-  applyAppend,
   applyGroupedAppend,
   buildCreateFile,
   isEmptyCapture,
 } from "./lib/note";
+import { chooseAppendFormat } from "./lib/route";
 import { parseTags } from "./lib/tags";
-import { type TemplateFn } from "./lib/templates";
+import { TEMPLATES, type TemplateFn } from "./lib/templates";
 import { buildTemplateVars } from "./lib/vars";
 import {
   type Source,
@@ -60,27 +60,23 @@ export interface CommandArgs {
   title?: string;
 }
 
+/** Two append targets the merged command routes between by capture shape. */
+export interface RoutedAppendConfig {
+  note: { file: string; heading: string };
+  checklist: { file: string; heading: string };
+}
+
 /**
- * Instant append (no-view): read selection/clipboard, merge the typed argument, render the
- * template and append under the heading, refreshing `updated` if the target has frontmatter.
- * Bails with a HUD message when the target file is unset or nothing was captured.
+ * Instant append (no-view): read selection/clipboard, merge the typed argument, then CLASSIFY the
+ * capture — multi-line → note block, single line → checklist item — and append it date-grouped
+ * (newest-first) to the matching target, refreshing `updated` if the file has frontmatter. Bails
+ * with a HUD message when nothing was captured or the routed target file is unset.
  */
 export async function runSilentAppend(
   args: CommandArgs,
-  config: {
-    file: string;
-    heading: string;
-    template: TemplateFn;
-    /** Append-checklist: group items under an auto-created `## _date_` sub-heading. */
-    groupByDate?: boolean;
-  },
+  config: RoutedAppendConfig,
   prefs: AppendPrefs,
-  label: string,
 ): Promise<void> {
-  if (!config.file.trim()) {
-    await showHUD(`Rapid Notes: set the ${label} file in preferences`);
-    return;
-  }
   const source = await readSource();
   const { selected, clipboard, usedClipboard } = await readInputs(
     source,
@@ -99,6 +95,14 @@ export async function runSilentAppend(
     );
     return;
   }
+  const format = chooseAppendFormat(content);
+  const target = config[format];
+  const template =
+    format === "note" ? TEMPLATES.appendNote : TEMPLATES.checklist;
+  if (!target.file.trim()) {
+    await showHUD(`Rapid Notes: set the ${format} file in preferences`);
+    return;
+  }
   try {
     const now = new Date();
     const vars = buildTemplateVars({
@@ -114,13 +118,16 @@ export async function runSilentAppend(
       dateFormat: prefs.dateFormat,
       separator: sep,
     });
-    const line = config.template(vars);
-    const current = readFile(config.file);
-    const appended = config.groupByDate
-      ? applyGroupedAppend(current, config.heading, `_${vars.date}_`, line)
-      : applyAppend(current, config.heading, line);
+    const line = template(vars);
+    const current = readFile(target.file);
+    const appended = applyGroupedAppend(
+      current,
+      target.heading,
+      `_${vars.date}_`,
+      line,
+    );
     writeFile(
-      config.file,
+      target.file,
       upsertUpdatedField(appended, formatDate(now, prefs.dateFormat)),
     );
     await showHUD("Rapid Notes: appended");
