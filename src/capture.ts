@@ -1,4 +1,4 @@
-import { Toast, showHUD, showToast } from "@raycast/api";
+import { Toast, showToast } from "@raycast/api";
 import { join } from "node:path";
 import { readCaptureInputs } from "./lib/capture-inputs";
 import { upsertUpdatedField } from "./lib/frontmatter";
@@ -76,7 +76,7 @@ export type { RoutedAppendConfig };
  * Instant append (no-view): read selection/clipboard, then delegate the whole decision to the pure
  * `planSilentAppend` (content merge + shape routing + rendering + empty/missing branches). This
  * adapter only does I/O and UI: read the target file, write the spliced result, and map the plan's
- * discriminated outcome to a HUD/Toast.
+ * discriminated outcome to a Toast (green Success / red Failure).
  */
 export async function runSilentAppend(
   args: CommandArgs,
@@ -102,8 +102,8 @@ export async function runSilentAppend(
   switch (plan.kind) {
     case "emptyTerminal":
       // A non-AX terminal can't expose its selection to the AX API — only its clipboard
-      // (copy-on-select) is reachable — so an empty capture there is a distinct, actionable
-      // failure: surface it loudly (red Toast) instead of the generic "nothing selected" HUD.
+      // (copy-on-select) is reachable — so an empty capture there gets a terminal-specific
+      // message (enable a toggle / pass an argument) rather than the generic "nothing selected".
       await showToast({
         style: Toast.Style.Failure,
         title: "Nothing to capture in this terminal",
@@ -112,21 +112,26 @@ export async function runSilentAppend(
       });
       return;
     case "emptyGeneric":
-      await showHUD(
-        plan.usedClipboard
-          ? "Rapid Notes: nothing selected or empty clipboard"
-          : "Rapid Notes: nothing selected",
-      );
+      await showToast({
+        style: Toast.Style.Failure,
+        title: "Nothing to append",
+        message: plan.usedClipboard
+          ? "Nothing selected and clipboard is empty"
+          : "Nothing selected",
+      });
       return;
     case "missingTarget":
-      await showHUD(`Rapid Notes: set the ${plan.format} file in preferences`);
+      await showToast({
+        style: Toast.Style.Failure,
+        title: `Set the append ${plan.format} file in preferences`,
+      });
       return;
   }
 
   try {
     const appended = renderAppendedFile(readFile(plan.file), plan);
     writeFile(plan.file, upsertUpdatedField(appended, plan.updated));
-    await showHUD("Rapid Notes: appended");
+    await showToast({ style: Toast.Style.Success, title: "Appended" });
   } catch (error) {
     await showToast({
       style: Toast.Style.Failure,
@@ -171,14 +176,24 @@ export async function runSilentCreate(
     });
     switch (plan.kind) {
       case "missingDirectory":
-        await showHUD(`Rapid Notes: set the ${label} directory in preferences`);
+        await showToast({
+          style: Toast.Style.Failure,
+          title: `Set the ${label} directory in preferences`,
+        });
         return;
       case "empty":
-        await showHUD("Rapid Notes: nothing to capture");
+        await showToast({
+          style: Toast.Style.Failure,
+          title: "Nothing to capture",
+        });
         return;
     }
     writeFile(join(plan.directory, plan.filename), plan.file);
-    await showHUD(`Rapid Notes: created ${plan.filename}`);
+    await showToast({
+      style: Toast.Style.Success,
+      title: "Created",
+      message: plan.filename,
+    });
   } catch (error) {
     await showToast({
       style: Toast.Style.Failure,

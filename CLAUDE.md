@@ -62,7 +62,8 @@ publish flow depend on them; do not reimplement logic in the Makefile or the two
     or creates in `createDirectory`; no arguments.
   - `src/capture.ts` — THIN non-command adapter (`@raycast/api`): `runSilentAppend`/`runSilentCreate`
     read selection/clipboard, delegate the whole decision to `lib/plan.plan*`, then switch on the
-    returned discriminated outcome to do the I/O (`readFile`/`writeFile`) and UI (HUD/Toast). No
+    returned discriminated outcome to do the I/O (`readFile`/`writeFile`) and UI (Toast: green
+    `Success` on write, red `Failure` on every non-write outcome). No
     business logic here — verify the I/O/UI wiring via `make dev`.
 - `src/lib/` — pure core, no `@raycast/api`: output templates as functions of a vars object
   (`templates.ts` + `vars.ts`), date + timestamp-filename formatting, Markdown prepend (NEWEST-FIRST:
@@ -159,15 +160,21 @@ publish flow depend on them; do not reimplement logic in the Makefile or the two
   Electron) work only in `no-view` (Silent), NOT in a focus-stealing Form. The Form therefore prefills
   Content from `readSelection` and shows a separate editable Clipboard field from `readClipboardText`,
   gated by the `useClipboard` preference.
-- Silent (`no-view`) command: never render UI; give feedback via `showHUD`, and on empty input show
-  a HUD error and exit. APPEND reads selection/clipboard from TWO orthogonal opt-in toggles
+- Silent (`no-view`) command: never render a VIEW (no Form/Detail/List); give feedback via
+  `showToast` — green `Toast.Style.Success` on a write, red `Toast.Style.Failure` on empty input /
+  missing target / exception, then exit. (HUD unused here — it can't be colored. CAVEAT, UNVERIFIED:
+  docs say `showToast` falls back to `showHUD` when no window is open, which a hotkey-launched no-view
+  command has none of — if that fallback fires, BOTH the color AND the `message` second line are lost
+  (regression vs the old single-string HUDs). Verify in `make dev` by triggering via the real global
+  HOTKEY — NOT root-search typing, which opens a window and masks the fallback.) APPEND reads
+  selection/clipboard from TWO orthogonal opt-in toggles
   (`readCaptureInputs`): `useSelection` (default OFF) reads the selection, `useClipboard` (default
   OFF) reads the clipboard. Default-off matters — a stray selection still highlighted in an editor
   (e.g. the previous checklist line in Obsidian) MUST NOT auto-merge into the new item; that
   compounding leak was the reason append's selection became opt-in. Pass text as the `text` argument
   when both are off. Create commands (New Task / New Note) have NO `useSelection` toggle and ALWAYS
   read the selection — they are EXPERIMENTAL (rarely used, to be reworked), keeping prior behaviour.
-- GPU terminals (Ghostty, kitty, Alacritty, WezTerm, cmux) hide the selection from BOTH AX and the Cmd+C
+- GPU terminals (Ghostty, kitty, Alacritty, WezTerm, cmux, agterm) hide the selection from BOTH AX and the Cmd+C
   fallback (in a terminal Cmd+C = SIGINT) → `getSelectedText()` returns "" (verified: Ghostty
   `sel=0`). Silent capture detects them by bundleId (`lib/terminal.isNonAxTerminal`, needs
   `Source.bundleId`), skips the selection reader, and reads the clipboard as the selection surrogate

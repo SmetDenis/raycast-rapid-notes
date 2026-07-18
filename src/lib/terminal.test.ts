@@ -15,6 +15,10 @@ describe("isNonAxTerminal", () => {
     expect(isNonAxTerminal("com.cmuxterm.app.nightly")).toBe(true);
   });
 
+  test("recognizes agterm by bundle id", () => {
+    expect(isNonAxTerminal("com.umputun.agterm")).toBe(true);
+  });
+
   test("excludes native AX terminals (Terminal.app, iTerm2)", () => {
     expect(isNonAxTerminal("com.apple.Terminal")).toBe(false);
     expect(isNonAxTerminal("com.googlecode.iterm2")).toBe(false);
